@@ -1,6 +1,7 @@
  package com.capri.app
 
  import android.app.Activity
+ import android.app.AlertDialog
  import android.content.ActivityNotFoundException
  import android.content.Context
  import android.content.Intent
@@ -9,9 +10,13 @@
  import android.speech.tts.TextToSpeech
  import android.text.InputType
  import android.view.View
+ import android.widget.AdapterView
+ import android.widget.ArrayAdapter
  import android.widget.Button
  import android.widget.EditText
  import android.widget.LinearLayout
+ import android.widget.ScrollView
+ import android.widget.Spinner
  import android.widget.TextView
  import org.json.JSONArray
  import org.json.JSONObject
@@ -21,10 +26,43 @@
 
  class ChatActivity : Activity() {
      private val faces = listOf("calm", "laugh", "smug", "aside", "look", "many", "wide")
+     private val presetNames = listOf("Debochada", "Fofa", "Séria", "Pirata")
+     private val presetDescs = listOf(
+         "debochada e simpática, com humor ácido",
+         "fofa e carinhosa, fala com muito afeto",
+         "séria, direta e profissional",
+         "um pirata exagerado, que fala com gírias de pirata"
+     )
+     private val names = ArrayList<String>()
+     private val descs = ArrayList<String>()
      private var tts: TextToSpeech? = null
      private lateinit var keyField: EditText
      private lateinit var ask: EditText
      private lateinit var out: TextView
+     private lateinit var spinner: Spinner
+     private lateinit var adapter: ArrayAdapter<String>
+
+     private fun customList(): JSONArray {
+         val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
+         return try {
+             JSONArray(prefs.getString("personas", "[]"))
+         } catch (e: Exception) {
+             JSONArray()
+         }
+     }
+
+     private fun reload() {
+         names.clear()
+         descs.clear()
+         names.addAll(presetNames)
+         descs.addAll(presetDescs)
+         val arr = customList()
+         for (i in 0 until arr.length()) {
+             val o = arr.getJSONObject(i)
+             names.add(o.getString("name"))
+             descs.add(o.getString("desc"))
+         }
+     }
 
      override fun onCreate(savedInstanceState: Bundle?) {
          super.onCreate(savedInstanceState)
@@ -36,6 +74,8 @@
              }
          }
 
+         reload()
+
          val box = LinearLayout(this)
          box.orientation = LinearLayout.VERTICAL
          box.setPadding(40, 40, 40, 40)
@@ -45,6 +85,26 @@
          keyField.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
          if (prefs.getString("key", "") != "") keyField.visibility = View.GONE
          box.addView(keyField)
+
+         spinner = Spinner(this)
+         adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, names)
+         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+         spinner.adapter = adapter
+         val saved = prefs.getString("persona_name", presetNames[0]) ?: presetNames[0]
+         val savedIdx = names.indexOf(saved)
+         spinner.setSelection(if (savedIdx >= 0) savedIdx else 0)
+         spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+             override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                 val chosen = names.getOrNull(pos) ?: return
+                 val current = prefs.getString("persona_name", presetNames[0])
+                 if (chosen != current) {
+                     prefs.edit().putString("persona_name", chosen).remove("hist").apply()
+                 }
+             }
+
+             override fun onNothingSelected(p: AdapterView<*>?) {}
+         }
+         box.addView(spinner)
 
          ask = EditText(this)
          ask.hint = "Pergunte algo à Capri"
@@ -74,6 +134,16 @@
          send.setOnClickListener { sendQuestion() }
          box.addView(send)
 
+         val add = Button(this)
+         add.text = "Nova personalidade"
+         add.setOnClickListener { newPersona() }
+         box.addView(add)
+
+         val del = Button(this)
+         del.text = "Apagar personalidade"
+         del.setOnClickListener { deletePersona() }
+         box.addView(del)
+
          val clear = Button(this)
          clear.text = "Limpar memória"
          clear.setOnClickListener {
@@ -88,7 +158,65 @@
          out.setPadding(0, 24, 0, 0)
          box.addView(out)
 
-         setContentView(box)
+         val scroll = ScrollView(this)
+         scroll.addView(box)
+         setContentView(scroll)
+     }
+
+     private fun newPersona() {
+         val lay = LinearLayout(this)
+         lay.orientation = LinearLayout.VERTICAL
+         lay.setPadding(48, 24, 48, 0)
+         val nameIn = EditText(this)
+         nameIn.hint = "Nome (ex: Vovó)"
+         lay.addView(nameIn)
+         val descIn = EditText(this)
+         descIn.hint = "Como ela é? (ex: uma vovó carinhosa que dá conselhos)"
+         lay.addView(descIn)
+         AlertDialog.Builder(this)
+             .setTitle("Nova personalidade")
+             .setView(lay)
+             .setPositiveButton("Salvar") { _, _ ->
+                 val n = nameIn.text.toString().trim()
+                 val d = descIn.text.toString().trim()
+                 if (n.isNotEmpty() && d.isNotEmpty()) {
+                     val arr = customList()
+                     arr.put(JSONObject().put("name", n).put("desc", d))
+                     getSharedPreferences("capri", Context.MODE_PRIVATE).edit()
+                         .putString("personas", arr.toString())
+                         .putString("persona_name", n)
+                         .remove("hist")
+                         .apply()
+                     reload()
+                     adapter.notifyDataSetChanged()
+                     spinner.setSelection(names.indexOf(n))
+                     out.text = "Personalidade salva: " + n
+                 }
+             }
+             .setNegativeButton("Cancelar", null)
+             .show()
+     }
+
+     private fun deletePersona() {
+         val idx = spinner.selectedItemPosition
+         if (idx < presetNames.size) {
+             out.text = "As personalidades padrão não podem ser apagadas."
+             return
+         }
+         val arr = customList()
+         val keep = JSONArray()
+         for (i in 0 until arr.length()) {
+             if (i != idx - presetNames.size) keep.put(arr.get(i))
+         }
+         getSharedPreferences("capri", Context.MODE_PRIVATE).edit()
+             .putString("personas", keep.toString())
+             .putString("persona_name", presetNames[0])
+             .remove("hist")
+             .apply()
+         reload()
+         adapter.notifyDataSetChanged()
+         spinner.setSelection(0)
+         out.text = "Personalidade apagada."
      }
 
      override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -122,11 +250,12 @@
          } catch (e: Exception) {
              JSONArray()
          }
+         val desc = descs.getOrNull(spinner.selectedItemPosition) ?: presetDescs[0]
          tts?.stop()
          out.text = "Pensando..."
          Thread {
              val answer = try {
-                 call(key, hist, q)
+                 call(key, hist, q, desc)
              } catch (e: Exception) {
                  "[wide] Deu erro: " + e.message
              }
@@ -164,14 +293,14 @@
          super.onDestroy()
      }
 
-     private fun call(key: String, hist: JSONArray, q: String): String {
+     private fun call(key: String, hist: JSONArray, q: String, desc: String): String {
          val body = JSONObject()
          body.put("model", "openai/gpt-oss-20b")
          val msgs = JSONArray()
          msgs.put(
              JSONObject().put("role", "system").put(
                  "content",
-                 "Você é Capri, uma assistente debochada e simpática. " +
+                 "Você é Capri, uma assistente " + desc + ". " +
                      "Você lembra do que já foi conversado. " +
                      "Responda em português, em no máximo 3 frases. " +
                      "Comece SEMPRE com uma tag de emoção entre colchetes, " +
