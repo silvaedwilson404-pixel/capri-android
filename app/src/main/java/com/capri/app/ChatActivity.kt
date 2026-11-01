@@ -83,7 +83,7 @@ class ChatActivity : Activity() {
 
     private fun call(key: String, q: String): String {
         val body = JSONObject()
-        body.put("model", "llama-3.3-70b-versatile")
+        body.put("model", "openai/gpt-oss-20b")
         val msgs = JSONArray()
         msgs.put(
             JSONObject().put("role", "system").put(
