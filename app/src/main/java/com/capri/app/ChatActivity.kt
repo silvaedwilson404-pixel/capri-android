@@ -1,84 +1,141 @@
-package com.capri.app
+  package com.capri.app
 
-import android.app.Activity
-import android.content.Context
-import android.content.Intent
-import android.os.Bundle
-import android.text.InputType
-import android.view.View
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.TextView
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
+ import android.app.Activity
+ import android.content.ActivityNotFoundException
+ import android.content.Context
+ import android.content.Intent
+ import android.os.Bundle
+ import android.speech.RecognizerIntent
+ import android.speech.tts.TextToSpeech
+ import android.text.InputType
+ import android.view.View
+ import android.widget.Button
+ import android.widget.EditText
+ import android.widget.LinearLayout
+ import android.widget.TextView
+ import org.json.JSONArray
+ import org.json.JSONObject
+ import java.net.HttpURLConnection
+ import java.net.URL
+ import java.util.Locale
 
-class ChatActivity : Activity() {
+ class ChatActivity : Activity() {
     private val faces = listOf("calm", "laugh", "smug", "aside", "look", "many", "wide")
+    private var tts: TextToSpeech? = null
+    private lateinit var keyField: EditText
+    private lateinit var ask: EditText
+    private lateinit var out: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
 
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                tts?.language = Locale("pt", "BR")
+            }
+        }
+
         val box = LinearLayout(this)
         box.orientation = LinearLayout.VERTICAL
         box.setPadding(40, 40, 40, 40)
 
-        val keyField = EditText(this)
+        keyField = EditText(this)
         keyField.hint = "Cole a chave do Groq (só uma vez)"
         keyField.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         if (prefs.getString("key", "") != "") keyField.visibility = View.GONE
         box.addView(keyField)
 
-        val ask = EditText(this)
+        ask = EditText(this)
         ask.hint = "Pergunte algo à Capri"
         box.addView(ask)
 
+        val mic = Button(this)
+        mic.text = "Falar"
+        mic.setOnClickListener {
+            try {
+                startActivityForResult(
+                    Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                        .putExtra(
+                            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                        )
+                        .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR"),
+                    7
+                )
+            } catch (e: ActivityNotFoundException) {
+                out.text = "Seu celular não tem reconhecimento de voz."
+            }
+        }
+        box.addView(mic)
+
         val send = Button(this)
         send.text = "Perguntar"
+        send.setOnClickListener { sendQuestion() }
         box.addView(send)
 
-        val out = TextView(this)
+        out = TextView(this)
         out.textSize = 16f
         out.setPadding(0, 24, 0, 0)
         box.addView(out)
 
-        send.setOnClickListener {
-            val typed = keyField.text.toString().trim()
-            if (keyField.visibility == View.VISIBLE && typed.isNotEmpty()) {
-                prefs.edit().putString("key", typed).apply()
-                keyField.setText("")
-                keyField.visibility = View.GONE
-            }
-            val key = prefs.getString("key", "") ?: ""
-            val q = ask.text.toString().trim()
-            if (key.isEmpty()) {
-                out.text = "Falta colar a chave."
-                return@setOnClickListener
-            }
-            if (q.isEmpty()) return@setOnClickListener
-            out.text = "Pensando..."
-            Thread {
-                val answer = try {
-                    call(key, q)
-                } catch (e: Exception) {
-                    "[wide] Deu erro: " + e.message
-                }
-                val m = Regex("^\\[(\\w+)\\]\\s*").find(answer)
-                val tag = m?.groupValues?.get(1) ?: "calm"
-                val face = if (tag in faces) tag else "calm"
-                val text = answer.replace(Regex("^\\[\\w+\\]\\s*"), "")
-                runOnUiThread { out.text = text }
-                startService(
-                    Intent(this, OverlayService::class.java)
-                        .setAction("FACE")
-                        .putExtra("face", face)
-                )
-            }.start()
-        }
         setContentView(box)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 7 && resultCode == RESULT_OK) {
+            val said = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            if (said != null) {
+                ask.setText(said)
+                sendQuestion()
+            }
+        }
+    }
+
+    private fun sendQuestion() {
+        val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
+        val typed = keyField.text.toString().trim()
+        if (keyField.visibility == View.VISIBLE && typed.isNotEmpty()) {
+            prefs.edit().putString("key", typed).apply()
+            keyField.setText("")
+            keyField.visibility = View.GONE
+        }
+        val key = prefs.getString("key", "") ?: ""
+        val q = ask.text.toString().trim()
+        if (key.isEmpty()) {
+            out.text = "Falta colar a chave."
+            return
+        }
+        if (q.isEmpty()) return
+        tts?.stop()
+        out.text = "Pensando..."
+        Thread {
+            val answer = try {
+                call(key, q)
+            } catch (e: Exception) {
+                "[wide] Deu erro: " + e.message
+            }
+            val m = Regex("^\\[(\\w+)\\]\\s*").find(answer)
+            val tag = m?.groupValues?.get(1) ?: "calm"
+            val face = if (tag in faces) tag else "calm"
+            val text = answer.replace(Regex("^\\[\\w+\\]\\s*"), "")
+            runOnUiThread {
+                out.text = text
+                tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "capri")
+            }
+            startService(
+                Intent(this, OverlayService::class.java)
+                    .setAction("FACE")
+                    .putExtra("face", face)
+            )
+        }.start()
+    }
+
+    override fun onDestroy() {
+        tts?.stop()
+        tts?.shutdown()
+        super.onDestroy()
     }
 
     private fun call(key: String, q: String): String {
