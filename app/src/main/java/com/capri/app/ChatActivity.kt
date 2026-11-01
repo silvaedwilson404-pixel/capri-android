@@ -33,6 +33,12 @@
          "séria, direta e profissional",
          "um pirata exagerado, que fala com gírias de pirata"
      )
+     private val presetStyle = listOf(6, 1, 2, 5)
+     private val styleNames = listOf(
+         "Normal", "Aguda", "Grave", "Rápida", "Lenta", "Rouca", "Debochada", "Robô"
+     )
+     private val stylePitch = listOf(1.0f, 1.5f, 0.7f, 1.1f, 0.9f, 0.6f, 1.15f, 0.5f)
+     private val styleRate = listOf(1.0f, 1.05f, 0.9f, 1.4f, 0.7f, 0.85f, 1.15f, 0.8f)
      private val names = ArrayList<String>()
      private val descs = ArrayList<String>()
      private var tts: TextToSpeech? = null
@@ -62,6 +68,20 @@
              names.add(o.getString("name"))
              descs.add(o.getString("desc"))
          }
+     }
+
+     private fun styleOf(name: String): Int {
+         val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
+         val p = presetNames.indexOf(name)
+         val def = if (p >= 0) presetStyle[p] else 0
+         val s = prefs.getInt("style_" + name, def)
+         return if (s in styleNames.indices) s else 0
+     }
+
+     private fun applyVoice(name: String) {
+         val s = styleOf(name)
+         tts?.setPitch(stylePitch[s])
+         tts?.setSpeechRate(styleRate[s])
      }
 
      override fun onCreate(savedInstanceState: Bundle?) {
@@ -134,6 +154,11 @@
          send.setOnClickListener { sendQuestion() }
          box.addView(send)
 
+         val voice = Button(this)
+         voice.text = "Voz desta personalidade"
+         voice.setOnClickListener { chooseVoice() }
+         box.addView(voice)
+
          val add = Button(this)
          add.text = "Nova personalidade"
          add.setOnClickListener { newPersona() }
@@ -163,6 +188,22 @@
          setContentView(scroll)
      }
 
+     private fun chooseVoice() {
+         val name = names.getOrNull(spinner.selectedItemPosition) ?: return
+         val cur = styleOf(name)
+         AlertDialog.Builder(this)
+             .setTitle("Voz de " + name)
+             .setSingleChoiceItems(styleNames.toTypedArray(), cur) { d, which ->
+                 getSharedPreferences("capri", Context.MODE_PRIVATE)
+                     .edit().putInt("style_" + name, which).apply()
+                 applyVoice(name)
+                 tts?.speak("Oi, é assim que eu falo.", TextToSpeech.QUEUE_FLUSH, null, "demo")
+                 d.dismiss()
+             }
+             .setNegativeButton("Fechar", null)
+             .show()
+     }
+
      private fun newPersona() {
          val lay = LinearLayout(this)
          lay.orientation = LinearLayout.VERTICAL
@@ -190,7 +231,7 @@
                      reload()
                      adapter.notifyDataSetChanged()
                      spinner.setSelection(names.indexOf(n))
-                     out.text = "Personalidade salva: " + n
+                     out.text = "Personalidade salva: " + n + ". Toque em Voz desta personalidade para escolher como ela fala."
                  }
              }
              .setNegativeButton("Cancelar", null)
@@ -203,6 +244,7 @@
              out.text = "As personalidades padrão não podem ser apagadas."
              return
          }
+         val gone = names[idx]
          val arr = customList()
          val keep = JSONArray()
          for (i in 0 until arr.length()) {
@@ -211,6 +253,7 @@
          getSharedPreferences("capri", Context.MODE_PRIVATE).edit()
              .putString("personas", keep.toString())
              .putString("persona_name", presetNames[0])
+             .remove("style_" + gone)
              .remove("hist")
              .apply()
          reload()
@@ -250,6 +293,7 @@
          } catch (e: Exception) {
              JSONArray()
          }
+         val pname = names.getOrNull(spinner.selectedItemPosition) ?: presetNames[0]
          val desc = descs.getOrNull(spinner.selectedItemPosition) ?: presetDescs[0]
          tts?.stop()
          out.text = "Pensando..."
@@ -267,6 +311,7 @@
              val text = answer.replace(Regex("^\\[\\w+\\]\\s*"), "")
              runOnUiThread {
                  out.text = text
+                 applyVoice(pname)
                  tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "capri")
              }
              startService(
