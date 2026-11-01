@@ -84,6 +84,22 @@
          tts?.setSpeechRate(styleRate[s])
      }
 
+     private fun listen() {
+         try {
+             startActivityForResult(
+                 Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                     .putExtra(
+                         RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                         RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                     )
+                     .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR"),
+                 7
+             )
+         } catch (e: ActivityNotFoundException) {
+             out.text = "Seu celular não tem reconhecimento de voz."
+         }
+     }
+
      override fun onCreate(savedInstanceState: Bundle?) {
          super.onCreate(savedInstanceState)
          val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
@@ -132,21 +148,7 @@
 
          val mic = Button(this)
          mic.text = "Falar"
-         mic.setOnClickListener {
-             try {
-                 startActivityForResult(
-                     Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                         .putExtra(
-                             RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                             RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                         )
-                         .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR"),
-                     7
-                 )
-             } catch (e: ActivityNotFoundException) {
-                 out.text = "Seu celular não tem reconhecimento de voz."
-             }
-         }
+         mic.setOnClickListener { listen() }
          box.addView(mic)
 
          val send = Button(this)
@@ -186,6 +188,10 @@
          val scroll = ScrollView(this)
          scroll.addView(box)
          setContentView(scroll)
+
+         if (prefs.getString("key", "") != "" && savedInstanceState == null) {
+             scroll.postDelayed({ listen() }, 300)
+         }
      }
 
      private fun chooseVoice() {
