@@ -9,6 +9,7 @@
  import android.speech.RecognizerIntent
  import android.speech.tts.TextToSpeech
  import android.text.InputType
+ import android.view.Gravity
  import android.view.View
  import android.widget.AdapterView
  import android.widget.ArrayAdapter
@@ -37,8 +38,8 @@
      private val styleNames = listOf(
          "Normal", "Aguda", "Grave", "Rápida", "Lenta", "Rouca", "Debochada", "Robô"
      )
-     private val stylePitch = listOf(1.0f, 1.5f, 0.7f, 1.1f, 0.9f, 0.6f, 1.15f, 0.5f)
-     private val styleRate = listOf(1.0f, 1.05f, 0.9f, 1.4f, 0.7f, 0.85f, 1.15f, 0.8f)
+     private val stylePitch = listOf(1.0f, 1.15f, 0.9f, 1.0f, 0.95f, 0.85f, 1.05f, 0.7f)
+     private val styleRate = listOf(1.0f, 1.0f, 0.95f, 1.15f, 0.85f, 0.9f, 1.05f, 0.9f)
      private val names = ArrayList<String>()
      private val descs = ArrayList<String>()
      private var tts: TextToSpeech? = null
@@ -82,6 +83,43 @@
          val s = styleOf(name)
          tts?.setPitch(stylePitch[s])
          tts?.setSpeechRate(styleRate[s])
+     }
+
+     private fun getFacts(): String {
+         return getSharedPreferences("capri", Context.MODE_PRIVATE)
+             .getString("facts", "") ?: ""
+     }
+
+     private fun saveFacts(text: String) {
+         getSharedPreferences("capri", Context.MODE_PRIVATE)
+             .edit().putString("facts", text.trim()).apply()
+     }
+
+     private fun editFacts() {
+         val input = EditText(this)
+         input.setText(getFacts())
+         input.hint = "Um fato por linha. Ex: Meu nome é Ed"
+         input.minLines = 6
+         input.gravity = Gravity.TOP
+         input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+         val lay = LinearLayout(this)
+         lay.setPadding(48, 24, 48, 0)
+         lay.addView(
+             input,
+             LinearLayout.LayoutParams(
+                 LinearLayout.LayoutParams.MATCH_PARENT,
+                 LinearLayout.LayoutParams.WRAP_CONTENT
+             )
+         )
+         AlertDialog.Builder(this)
+             .setTitle("Fatos sobre mim")
+             .setView(lay)
+             .setPositiveButton("Salvar") { _, _ ->
+                 saveFacts(input.text.toString())
+                 out.text = "Fatos salvos."
+             }
+             .setNegativeButton("Cancelar", null)
+             .show()
      }
 
      private fun listen() {
@@ -156,6 +194,11 @@
          send.setOnClickListener { sendQuestion() }
          box.addView(send)
 
+         val facts = Button(this)
+         facts.text = "Fatos sobre mim"
+         facts.setOnClickListener { editFacts() }
+         box.addView(facts)
+
          val voice = Button(this)
          voice.text = "Voz desta personalidade"
          voice.setOnClickListener { chooseVoice() }
@@ -176,7 +219,7 @@
          clear.setOnClickListener {
              getSharedPreferences("capri", Context.MODE_PRIVATE)
                  .edit().remove("hist").apply()
-             out.text = "Memória apagada."
+             out.text = "Memória da conversa apagada. Os fatos sobre você continuam."
          }
          box.addView(clear)
 
@@ -294,6 +337,19 @@
              return
          }
          if (q.isEmpty()) return
+
+         val rem = Regex(
+             "^(lembre|lembra|anote|anota|guarde|guarda)\\s+que\\s+(.+)$",
+             RegexOption.IGNORE_CASE
+         ).find(q)
+         if (rem != null) {
+             val fact = rem.groupValues[2].trim().trimEnd('.')
+             val cur = getFacts()
+             val upd = if (cur.isEmpty()) fact else cur + "\n" + fact
+             saveFacts(upd.takeLast(2000))
+         }
+         val facts = getFacts()
+
          val hist = try {
              JSONArray(prefs.getString("hist", "[]"))
          } catch (e: Exception) {
@@ -305,7 +361,7 @@
          out.text = "Pensando..."
          Thread {
              val answer = try {
-                 call(key, hist, q, desc)
+                 call(key, hist, q, desc, facts)
              } catch (e: Exception) {
                  "[wide] Deu erro: " + e.message
              }
@@ -344,14 +400,18 @@
          super.onDestroy()
      }
 
-     private fun call(key: String, hist: JSONArray, q: String, desc: String): String {
+     private fun call(key: String, hist: JSONArray, q: String, desc: String, facts: String): String {
          val body = JSONObject()
          body.put("model", "openai/gpt-oss-20b")
          val msgs = JSONArray()
+         val known = if (facts.isEmpty()) "" else
+             "Fatos que você sabe sobre o usuário, use quando fizer sentido: " +
+                 facts.replace("\n", "; ") + ". "
          msgs.put(
              JSONObject().put("role", "system").put(
                  "content",
                  "Você é Capri, uma assistente " + desc + ". " +
+                     known +
                      "Você lembra do que já foi conversado. " +
                      "Responda em português, em no máximo 3 frases. " +
                      "Comece SEMPRE com uma tag de emoção entre colchetes, " +
