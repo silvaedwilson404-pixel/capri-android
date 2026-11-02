@@ -111,11 +111,45 @@
          val base = "https://raw.githubusercontent.com/mochiiwuff/capri-desktop/main/assets/capri/"
          val html = """
  <body style="margin:0;background:transparent;overflow:hidden;height:100vh">
- <img src="capri-cutout.png" style="position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;animation:f 3s infinite alternate ease-in-out">
+ <div id="b" style="position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:50% 100%">
+ <img src="capri-cutout.png" style="width:100%;height:100%;object-fit:contain">
+ </div>
  <img id="r" src="face-calm.png" style="position:absolute;right:6px;bottom:10px;width:76px;height:76px;object-fit:cover;border-radius:50%;box-shadow:0 2px 10px rgba(0,0,0,.6);transition:opacity .25s">
- <style>@keyframes f{to{transform:translateY(-12px)}}</style>
+ <style>
+ #b{animation:pop .6s ease-out 1,idle 4s ease-in-out .6s infinite}
+ @keyframes pop{0%{transform:translateY(60px) scale(.7);opacity:0}100%{transform:translateY(0) scale(1);opacity:1}}
+ @keyframes idle{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-12px) rotate(1.5deg)}}
+ #b.laugh{animation:laugh .5s ease-in-out 4}
+ @keyframes laugh{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-16px) rotate(-4deg)}75%{transform:translateY(-16px) rotate(4deg)}}
+ #b.jump{animation:jump .7s ease-out 1}
+ @keyframes jump{0%{transform:scale(1)}30%{transform:translateY(-34px) scale(1.06,.96)}60%{transform:translateY(0) scale(.96,1.05)}100%{transform:scale(1)}}
+ #b.smug{animation:smug 1.8s ease-in-out 1}
+ @keyframes smug{0%,100%{transform:rotate(0) translateX(0)}40%,70%{transform:rotate(7deg) translateX(10px)}}
+ #b.aside{animation:aside 1.6s ease-in-out 1}
+ @keyframes aside{0%,100%{transform:translateX(0) rotate(0)}40%,70%{transform:translateX(-16px) rotate(-5deg)}}
+ #b.look{animation:look 1.6s ease-in-out 1}
+ @keyframes look{0%,100%{transform:scale(1)}40%,70%{transform:scale(1.08) translateY(-6px)}}
+ #b.glitch{animation:glitch .5s steps(2) 3}
+ @keyframes glitch{0%{transform:translateX(0);filter:none}25%{transform:translateX(-8px);filter:hue-rotate(90deg)}50%{transform:translateX(8px) skewX(4deg);filter:hue-rotate(200deg)}75%{transform:translateX(-4px);filter:hue-rotate(40deg)}100%{transform:translateX(0);filter:none}}
+ </style>
  <script>
- function setFace(n){r.style.opacity=0;setTimeout(function(){r.src="face-"+n+".png";r.style.opacity=1},250)}
+ var b=document.getElementById('b');
+ var map={laugh:'laugh',wide:'jump',smug:'smug',aside:'aside',look:'look',many:'glitch'};
+ function react(n){
+ var cls=map[n];
+ if(!cls){return}
+ b.className='';
+ void b.offsetWidth;
+ b.className=cls;
+ setTimeout(function(){b.className=''},2400);
+ }
+ function setFace(n){
+ r.style.opacity=0;
+ setTimeout(function(){r.src='face-'+n+'.png';r.style.opacity=1},250);
+ react(n);
+ }
+ var pool=['many','wide','smug','aside','look','laugh'];
+ setInterval(function(){react(pool[Math.floor(Math.random()*pool.length)])},9000);
  </script>
  </body>
  """
