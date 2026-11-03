@@ -2,6 +2,9 @@
 
  import android.app.Activity
  import android.app.AlertDialog
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.view.Window
  import android.content.ActivityNotFoundException
  import android.content.Context
  import android.content.Intent
@@ -140,6 +143,12 @@
 
      override fun onCreate(savedInstanceState: Bundle?) {
          super.onCreate(savedInstanceState)
+                               requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val card = GradientDrawable()
+        card.setColor(Color.parseColor("#0f0b1a"))
+        card.setStroke(6, Color.parseColor("#7b3ff2"))
+        card.cornerRadius = 36f
+        window.setBackgroundDrawable(card)
          val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
 
          tts = TextToSpeech(this) { status ->
