@@ -2,11 +2,11 @@
 
  import android.app.Activity
  import android.app.AlertDialog
-import android.graphics.Colorimport android.graphics.BitmapFactory
-import android.widget.ImageView
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
-import android.view.Window
+ import android.graphics.BitmapFactory
+ import android.widget.ImageView
+ import android.graphics.Typeface
+ import android.graphics.drawable.GradientDrawable
+ import android.view.Window
  import android.content.ActivityNotFoundException
  import android.content.Context
  import android.content.Intent
