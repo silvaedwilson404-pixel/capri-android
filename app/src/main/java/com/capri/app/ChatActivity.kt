@@ -5,25 +5,16 @@
  import android.content.ActivityNotFoundException
  import android.content.Context
  import android.content.Intent
- import android.graphics.Bitmap
- import android.graphics.BitmapFactory
- import android.graphics.Color
- import android.graphics.Typeface
- import android.graphics.drawable.GradientDrawable
  import android.os.Bundle
  import android.speech.RecognizerIntent
  import android.speech.tts.TextToSpeech
  import android.text.InputType
  import android.view.Gravity
  import android.view.View
- import android.view.ViewGroup
- import android.view.Window
  import android.widget.AdapterView
  import android.widget.ArrayAdapter
  import android.widget.Button
  import android.widget.EditText
- import android.widget.FrameLayout
- import android.widget.ImageView
  import android.widget.LinearLayout
  import android.widget.ScrollView
  import android.widget.Spinner
@@ -35,11 +26,6 @@
  import java.util.Locale
 
  class ChatActivity : Activity() {
-     private val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
-     private val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
-     private val PURPLE = Color.parseColor("#7b3ff2")
-     private val FACE_BASE = "https://raw.githubusercontent.com/mochiiwuff/capri-desktop/main/assets/capri/"
-
      private val faces = listOf("calm", "laugh", "smug", "aside", "look", "many", "wide")
      private val presetNames = listOf("Debochada", "Fofa", "Séria", "Pirata")
      private val presetDescs = listOf(
@@ -56,105 +42,12 @@
      private val styleRate = listOf(1.0f, 1.0f, 0.95f, 1.15f, 0.85f, 0.9f, 1.05f, 0.9f)
      private val names = ArrayList<String>()
      private val descs = ArrayList<String>()
-     private val faceCache = HashMap<String, Bitmap>()
      private var tts: TextToSpeech? = null
      private lateinit var keyField: EditText
      private lateinit var ask: EditText
      private lateinit var out: TextView
-     private lateinit var chip: TextView
-     private lateinit var faceView: ImageView
-     private lateinit var personaLabel: TextView
      private lateinit var spinner: Spinner
      private lateinit var adapter: ArrayAdapter<String>
-
-     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
-
-     private fun styledButton(label: String, filled: Boolean): Button {
-         val b = Button(this)
-         b.text = label
-         b.isAllCaps = true
-         b.setTextColor(Color.WHITE)
-         b.typeface = Typeface.MONOSPACE
-         b.textSize = 13f
-         val g = GradientDrawable()
-         g.cornerRadius = dp(8).toFloat()
-         if (filled) {
-             g.setColor(PURPLE)
-         } else {
-             g.setColor(Color.parseColor("#1a1428"))
-             g.setStroke(dp(2), PURPLE)
-         }
-         b.background = g
-         b.stateListAnimator = null
-         b.setPadding(dp(12), dp(10), dp(12), dp(10))
-         return b
-     }
-
-     private fun styledEdit(hint: String): EditText {
-         val e = EditText(this)
-         e.hint = hint
-         e.setTextColor(Color.WHITE)
-         e.setHintTextColor(Color.parseColor("#8a7fa8"))
-         e.typeface = Typeface.MONOSPACE
-         e.textSize = 14f
-         val g = GradientDrawable()
-         g.setColor(Color.parseColor("#1a1428"))
-         g.setStroke(dp(2), Color.parseColor("#4a2fa0"))
-         g.cornerRadius = dp(8).toFloat()
-         e.background = g
-         e.setPadding(dp(12), dp(10), dp(12), dp(10))
-         return e
-     }
-
-     private fun params(top: Int): LinearLayout.LayoutParams {
-         val p = LinearLayout.LayoutParams(MATCH, WRAP)
-         p.topMargin = dp(top)
-         return p
-     }
-
-     private fun row(a: View, b: View): LinearLayout {
-         val r = LinearLayout(this)
-         r.orientation = LinearLayout.HORIZONTAL
-         val p1 = LinearLayout.LayoutParams(0, WRAP, 1f)
-         p1.rightMargin = dp(4)
-         val p2 = LinearLayout.LayoutParams(0, WRAP, 1f)
-         p2.leftMargin = dp(4)
-         r.addView(a, p1)
-         r.addView(b, p2)
-         return r
-     }
-
-     private fun setStatus(text: String, bg: String, fg: String) {
-         runOnUiThread {
-             chip.text = text
-             chip.setTextColor(Color.parseColor(fg))
-             val g = GradientDrawable()
-             g.setColor(Color.parseColor(bg))
-             g.cornerRadius = dp(4).toFloat()
-             chip.background = g
-         }
-     }
-
-     private fun statusReady() = setStatus("PRONTA", "#2a2140", "#c9b8ff")
-     private fun statusListening() = setStatus("OUVINDO", "#ff2d6f", "#ffffff")
-     private fun statusThinking() = setStatus("PENSANDO", "#7b3ff2", "#ffffff")
-     private fun statusDone() = setStatus("RESPONDEU", "#2bff88", "#0f0b1a")
-     private fun statusError() = setStatus("ERRO", "#ff2d6f", "#ffffff")
-
-     private fun showFace(name: String) {
-         Thread {
-             try {
-                 val bmp = faceCache[name] ?: run {
-                     val b = URL(FACE_BASE + "face-" + name + ".png").openStream()
-                         .use { BitmapFactory.decodeStream(it) }
-                     if (b != null) faceCache[name] = b
-                     b
-                 }
-                 if (bmp != null) runOnUiThread { faceView.setImageBitmap(bmp) }
-             } catch (e: Exception) {
-             }
-         }.start()
-     }
 
      private fun customList(): JSONArray {
          val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
@@ -211,7 +104,13 @@
          input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
          val lay = LinearLayout(this)
          lay.setPadding(48, 24, 48, 0)
-         lay.addView(input, LinearLayout.LayoutParams(MATCH, WRAP))
+         lay.addView(
+             input,
+             LinearLayout.LayoutParams(
+                 LinearLayout.LayoutParams.MATCH_PARENT,
+                 LinearLayout.LayoutParams.WRAP_CONTENT
+             )
+         )
          AlertDialog.Builder(this)
              .setTitle("Fatos sobre mim")
              .setView(lay)
@@ -224,7 +123,6 @@
      }
 
      private fun listen() {
-         statusListening()
          try {
              startActivityForResult(
                  Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -237,13 +135,11 @@
              )
          } catch (e: ActivityNotFoundException) {
              out.text = "Seu celular não tem reconhecimento de voz."
-             statusError()
          }
      }
 
      override fun onCreate(savedInstanceState: Bundle?) {
          super.onCreate(savedInstanceState)
-         requestWindowFeature(Window.FEATURE_NO_TITLE)
          val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
 
          tts = TextToSpeech(this) { status ->
@@ -254,111 +150,26 @@
 
          reload()
 
-         val card = GradientDrawable()
-         card.setColor(Color.parseColor("#0f0b1a"))
-         card.setStroke(dp(3), PURPLE)
-         card.cornerRadius = dp(14).toFloat()
-         window.setBackgroundDrawable(card)
-         window.setLayout((resources.displayMetrics.widthPixels * 0.92f).toInt(), WRAP)
-
          val box = LinearLayout(this)
          box.orientation = LinearLayout.VERTICAL
-         box.setPadding(dp(16), dp(16), dp(16), dp(16))
+         box.setPadding(40, 40, 40, 40)
 
-         val head = LinearLayout(this)
-         head.orientation = LinearLayout.HORIZONTAL
-         head.gravity = Gravity.CENTER_VERTICAL
-
-         val frame = FrameLayout(this)
-         frame.setBackgroundColor(PURPLE)
-         frame.setPadding(dp(2), dp(2), dp(2), dp(2))
-         faceView = ImageView(this)
-         faceView.scaleType = ImageView.ScaleType.CENTER_CROP
-         frame.addView(faceView, FrameLayout.LayoutParams(dp(64), dp(64)))
-         head.addView(frame, LinearLayout.LayoutParams(WRAP, WRAP))
-
-         val nameRow = LinearLayout(this)
-         nameRow.orientation = LinearLayout.HORIZONTAL
-         nameRow.gravity = Gravity.CENTER_VERTICAL
-         nameRow.setPadding(dp(12), 0, 0, 0)
-         val nameLabel = TextView(this)
-         nameLabel.text = "CAPRI"
-         nameLabel.setTextColor(Color.WHITE)
-         nameLabel.typeface = Typeface.MONOSPACE
-         nameLabel.setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
-         nameLabel.textSize = 16f
-         personaLabel = TextView(this)
-         personaLabel.setTextColor(Color.parseColor("#8a7fa8"))
-         personaLabel.typeface = Typeface.MONOSPACE
-         personaLabel.textSize = 12f
-         personaLabel.setPadding(dp(8), 0, 0, 0)
-         chip = TextView(this)
-         chip.typeface = Typeface.MONOSPACE
-         chip.setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
-         chip.textSize = 11f
-         chip.setPadding(dp(8), dp(3), dp(8), dp(3))
-         nameRow.addView(nameLabel, LinearLayout.LayoutParams(WRAP, WRAP))
-         nameRow.addView(personaLabel, LinearLayout.LayoutParams(0, WRAP, 1f))
-         nameRow.addView(chip, LinearLayout.LayoutParams(WRAP, WRAP))
-         head.addView(nameRow, LinearLayout.LayoutParams(0, WRAP, 1f))
-         box.addView(head, params(0))
-
-         val bodyRow = LinearLayout(this)
-         bodyRow.orientation = LinearLayout.HORIZONTAL
-         val bar = View(this)
-         bar.setBackgroundColor(PURPLE)
-         out = TextView(this)
-         out.text = "Toque em Falar ou escreva sua pergunta."
-         out.setTextColor(Color.parseColor("#d8d0f0"))
-         out.typeface = Typeface.MONOSPACE
-         out.textSize = 14f
-         out.setPadding(dp(10), dp(2), 0, dp(2))
-         bodyRow.addView(bar, LinearLayout.LayoutParams(dp(3), MATCH))
-         bodyRow.addView(out, LinearLayout.LayoutParams(0, WRAP, 1f))
-         box.addView(bodyRow, params(14))
-
-         keyField = styledEdit("Cole a chave do Groq (só uma vez)")
+         keyField = EditText(this)
+         keyField.hint = "Cole a chave do Groq (só uma vez)"
          keyField.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
          if (prefs.getString("key", "") != "") keyField.visibility = View.GONE
-         box.addView(keyField, params(14))
+         box.addView(keyField)
 
          spinner = Spinner(this)
-         adapter = object : ArrayAdapter<String>(
-             this@ChatActivity, android.R.layout.simple_spinner_item, names
-         ) {
-             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                 val v = super.getView(position, convertView, parent)
-                 val t = v as TextView
-                 t.setTextColor(Color.WHITE)
-                 t.typeface = Typeface.MONOSPACE
-                 return v
-             }
-
-             override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
-                 val v = super.getDropDownView(position, convertView, parent)
-                 val t = v as TextView
-                 t.setTextColor(Color.WHITE)
-                 t.typeface = Typeface.MONOSPACE
-                 t.setBackgroundColor(Color.parseColor("#1a1428"))
-                 t.setPadding(dp(14), dp(12), dp(14), dp(12))
-                 return v
-             }
-         }
+         adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, names)
          adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
          spinner.adapter = adapter
-         val sg = GradientDrawable()
-         sg.setColor(Color.parseColor("#1a1428"))
-         sg.setStroke(dp(2), Color.parseColor("#4a2fa0"))
-         sg.cornerRadius = dp(8).toFloat()
-         spinner.background = sg
          val saved = prefs.getString("persona_name", presetNames[0]) ?: presetNames[0]
          val savedIdx = names.indexOf(saved)
-         personaLabel.text = "/ " + (if (savedIdx >= 0) saved else presetNames[0]).uppercase()
          spinner.setSelection(if (savedIdx >= 0) savedIdx else 0)
          spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
              override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
                  val chosen = names.getOrNull(pos) ?: return
-                 personaLabel.text = "/ " + chosen.uppercase()
                  val current = prefs.getString("persona_name", presetNames[0])
                  if (chosen != current) {
                      prefs.edit().putString("persona_name", chosen).remove("hist").apply()
@@ -367,43 +178,59 @@
 
              override fun onNothingSelected(p: AdapterView<*>?) {}
          }
-         box.addView(spinner, params(10))
+         box.addView(spinner)
 
-         ask = styledEdit("Pergunte algo à Capri")
-         box.addView(ask, params(10))
+         ask = EditText(this)
+         ask.hint = "Pergunte algo à Capri"
+         box.addView(ask)
 
-         val mic = styledButton("Falar", true)
+         val mic = Button(this)
+         mic.text = "Falar"
          mic.setOnClickListener { listen() }
-         val send = styledButton("Perguntar", true)
+         box.addView(mic)
+
+         val send = Button(this)
+         send.text = "Perguntar"
          send.setOnClickListener { sendQuestion() }
-         box.addView(row(mic, send), params(10))
+         box.addView(send)
 
-         val facts = styledButton("Fatos sobre mim", false)
+         val facts = Button(this)
+         facts.text = "Fatos sobre mim"
          facts.setOnClickListener { editFacts() }
-         val voice = styledButton("Voz", false)
+         box.addView(facts)
+
+         val voice = Button(this)
+         voice.text = "Voz desta personalidade"
          voice.setOnClickListener { chooseVoice() }
-         box.addView(row(facts, voice), params(8))
+         box.addView(voice)
 
-         val add = styledButton("Nova personalidade", false)
+         val add = Button(this)
+         add.text = "Nova personalidade"
          add.setOnClickListener { newPersona() }
-         val del = styledButton("Apagar", false)
-         del.setOnClickListener { deletePersona() }
-         box.addView(row(add, del), params(8))
+         box.addView(add)
 
-         val clear = styledButton("Limpar memória", false)
+         val del = Button(this)
+         del.text = "Apagar personalidade"
+         del.setOnClickListener { deletePersona() }
+         box.addView(del)
+
+         val clear = Button(this)
+         clear.text = "Limpar memória"
          clear.setOnClickListener {
              getSharedPreferences("capri", Context.MODE_PRIVATE)
                  .edit().remove("hist").apply()
              out.text = "Memória da conversa apagada. Os fatos sobre você continuam."
          }
-         box.addView(clear, params(8))
+         box.addView(clear)
+
+         out = TextView(this)
+         out.textSize = 16f
+         out.setPadding(0, 24, 0, 0)
+         box.addView(out)
 
          val scroll = ScrollView(this)
          scroll.addView(box)
          setContentView(scroll)
-
-         statusReady()
-         showFace("calm")
 
          if (prefs.getString("key", "") != "" && savedInstanceState == null) {
              scroll.postDelayed({ listen() }, 300)
@@ -453,7 +280,7 @@
                      reload()
                      adapter.notifyDataSetChanged()
                      spinner.setSelection(names.indexOf(n))
-                     out.text = "Personalidade salva: " + n + ". Toque em Voz para escolher como ela fala."
+                     out.text = "Personalidade salva: " + n + ". Toque em Voz desta personalidade para escolher como ela fala."
                  }
              }
              .setNegativeButton("Cancelar", null)
@@ -486,20 +313,130 @@
 
      override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
          super.onActivityResult(requestCode, resultCode, data)
-         if (requestCode == 7) {
-             if (resultCode == RESULT_OK) {
-                 val said = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-                 if (said != null) {
-                     ask.setText(said)
-                     sendQuestion()
-                     return
-                 }
+         if (requestCode == 7 && resultCode == RESULT_OK) {
+             val said = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+             if (said != null) {
+                 ask.setText(said)
+                 sendQuestion()
              }
-             statusReady()
          }
      }
 
      private fun sendQuestion() {
          val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
          val typed = keyField.text.toString().trim()
-         if (keyField.visibility == View.VISIBLE && typed.isNotEmpty()
+         if (keyField.visibility == View.VISIBLE && typed.isNotEmpty()) {
+             prefs.edit().putString("key", typed).apply()
+             keyField.setText("")
+             keyField.visibility = View.GONE
+         }
+         val key = prefs.getString("key", "") ?: ""
+         val q = ask.text.toString().trim()
+         if (key.isEmpty()) {
+             out.text = "Falta colar a chave."
+             return
+         }
+         if (q.isEmpty()) return
+
+         val rem = Regex(
+             "^(lembre|lembra|anote|anota|guarde|guarda)\\s+que\\s+(.+)$",
+             RegexOption.IGNORE_CASE
+         ).find(q)
+         if (rem != null) {
+             val fact = rem.groupValues[2].trim().trimEnd('.')
+             val cur = getFacts()
+             val upd = if (cur.isEmpty()) fact else cur + "\n" + fact
+             saveFacts(upd.takeLast(2000))
+         }
+         val facts = getFacts()
+
+         val hist = try {
+             JSONArray(prefs.getString("hist", "[]"))
+         } catch (e: Exception) {
+             JSONArray()
+         }
+         val pname = names.getOrNull(spinner.selectedItemPosition) ?: presetNames[0]
+         val desc = descs.getOrNull(spinner.selectedItemPosition) ?: presetDescs[0]
+         tts?.stop()
+         out.text = "Pensando..."
+         Thread {
+             val answer = try {
+                 call(key, hist, q, desc, facts)
+             } catch (e: Exception) {
+                 "[wide] Deu erro: " + e.message
+             }
+             val failed = answer.startsWith("[wide] Erro") || answer.startsWith("[wide] Deu erro")
+             if (!failed) saveHistory(hist, q, answer)
+             val m = Regex("^\\[(\\w+)\\]\\s*").find(answer)
+             val tag = m?.groupValues?.get(1) ?: "calm"
+             val face = if (tag in faces) tag else "calm"
+             val text = answer.replace(Regex("^\\[\\w+\\]\\s*"), "")
+             runOnUiThread {
+                 out.text = text
+                 applyVoice(pname)
+                 tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "capri")
+             }
+             startService(
+                 Intent(this, OverlayService::class.java)
+                     .setAction("FACE")
+                     .putExtra("face", face)
+             )
+         }.start()
+     }
+
+     private fun saveHistory(hist: JSONArray, q: String, a: String) {
+         hist.put(JSONObject().put("role", "user").put("content", q))
+         hist.put(JSONObject().put("role", "assistant").put("content", a))
+         val trimmed = JSONArray()
+         val start = Math.max(0, hist.length() - 12)
+         for (i in start until hist.length()) trimmed.put(hist.get(i))
+         getSharedPreferences("capri", Context.MODE_PRIVATE)
+             .edit().putString("hist", trimmed.toString()).apply()
+     }
+
+     override fun onDestroy() {
+         tts?.stop()
+         tts?.shutdown()
+         super.onDestroy()
+     }
+
+     private fun call(key: String, hist: JSONArray, q: String, desc: String, facts: String): String {
+         val body = JSONObject()
+         body.put("model", "openai/gpt-oss-20b")
+         val msgs = JSONArray()
+         val known = if (facts.isEmpty()) "" else
+             "Fatos que você sabe sobre o usuário, use quando fizer sentido: " +
+                 facts.replace("\n", "; ") + ". "
+         msgs.put(
+             JSONObject().put("role", "system").put(
+                 "content",
+                 "Você é Capri, uma assistente " + desc + ". " +
+                     known +
+                     "Você lembra do que já foi conversado. " +
+                     "Responda em português, em no máximo 3 frases. " +
+                     "Comece SEMPRE com uma tag de emoção entre colchetes, " +
+                     "uma destas: [calm] [laugh] [smug] [aside] [look] [many] [wide]."
+             )
+         )
+         for (i in 0 until hist.length()) msgs.put(hist.get(i))
+         msgs.put(JSONObject().put("role", "user").put("content", q))
+         body.put("messages", msgs)
+
+         val c = URL("https://api.groq.com/openai/v1/chat/completions")
+             .openConnection() as HttpURLConnection
+         c.requestMethod = "POST"
+         c.setRequestProperty("Content-Type", "application/json")
+         c.setRequestProperty("Authorization", "Bearer " + key)
+         c.setRequestProperty("User-Agent", "CapriApp/1.0")
+         c.doOutput = true
+         c.connectTimeout = 15000
+         c.readTimeout = 30000
+         c.outputStream.use { it.write(body.toString().toByteArray()) }
+
+         val code = c.responseCode
+         if (code !in 200..299) return "[wide] Erro " + code
+         val txt = c.inputStream.bufferedReader().readText()
+         return JSONObject(txt).getJSONArray("choices").getJSONObject(0)
+             .getJSONObject("message").getString("content")
+     }
+ }
