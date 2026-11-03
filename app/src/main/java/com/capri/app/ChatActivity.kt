@@ -3,6 +3,7 @@
  import android.app.Activity
  import android.app.AlertDialog
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Window
  import android.content.ActivityNotFoundException
@@ -237,7 +238,17 @@ import android.view.Window
          out.setPadding(0, 24, 0, 0)
          box.addView(out)
 
-         val scroll = ScrollView(this)
+                 for (i in 0 until box.childCount) {
+            val v = box.getChildAt(i)
+            if (v is Button) {
+                styleButton(v)
+            } else if (v is EditText) {
+                v.setTextColor(Color.WHITE)
+                v.setHintTextColor(Color.parseColor("#8a7fa8"))
+                v.typeface = Typeface.MONOSPACE
+            }
+                 }
+      val scroll = ScrollView(this)
          scroll.addView(box)
          setContentView(scroll)
 
@@ -246,7 +257,19 @@ import android.view.Window
          }
      }
 
-     private fun chooseVoice() {
+         private fun styleButton(b: Button) {
+        b.setTextColor(Color.WHITE)
+        b.typeface = Typeface.MONOSPACE
+        b.isAllCaps = true
+        b.textSize = 13f
+        val g = GradientDrawable()
+        g.setColor(Color.parseColor("#1a1428"))
+        g.setStroke(4, Color.parseColor("#7b3ff2"))
+        g.cornerRadius = 24f
+        b.background = g
+        b.stateListAnimator = null
+         }
+  private fun chooseVoice() {
          val name = names.getOrNull(spinner.selectedItemPosition) ?: return
          val cur = styleOf(name)
          AlertDialog.Builder(this)
