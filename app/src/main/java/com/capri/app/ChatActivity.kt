@@ -2,6 +2,7 @@
 
  import android.app.Activity
  import android.app.AlertDialog
+ import android.graphics.Color
  import android.graphics.BitmapFactory
  import android.widget.ImageView
  import android.graphics.Typeface
