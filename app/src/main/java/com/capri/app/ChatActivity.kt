@@ -2,7 +2,8 @@
 
  import android.app.Activity
  import android.app.AlertDialog
-import android.graphics.Color
+import android.graphics.Colorimport android.graphics.BitmapFactory
+import android.widget.ImageView
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Window
@@ -51,6 +52,8 @@ import android.view.Window
      private lateinit var ask: EditText
      private lateinit var out: TextView
      private lateinit var spinner: Spinner
+     private lateinit var faceView: ImageView
+     private lateinit var chip: TextView
      private lateinit var adapter: ArrayAdapter<String>
 
      private fun customList(): JSONArray {
@@ -162,7 +165,28 @@ import android.view.Window
 
          val box = LinearLayout(this)
          box.orientation = LinearLayout.VERTICAL
-         box.setPadding(40, 40, 40, 40)
+         box.setPadding(40, 40, 40, 40)        
+      val head = LinearLayout(this)
+        head.orientation = LinearLayout.HORIZONTAL
+        head.gravity = Gravity.CENTER_VERTICAL
+        faceView = ImageView(this)
+        faceView.scaleType = ImageView.ScaleType.CENTER_CROP
+        head.addView(faceView, LinearLayout.LayoutParams(160, 160))
+        val title = TextView(this)
+        title.text = "CAPRI"
+        title.setTextColor(Color.WHITE)
+        title.typeface = Typeface.MONOSPACE
+        title.textSize = 18f
+        title.setPadding(24, 0, 0, 0)
+        head.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        chip = TextView(this)
+        chip.typeface = Typeface.MONOSPACE
+        chip.textSize = 12f
+        chip.setPadding(20, 6, 20, 6)
+        head.addView(chip)
+        box.addView(head)
+        setStatus("PRONTA", "#4a2fa0")
+        showFace("calm")
 
          keyField = EditText(this)
          keyField.hint = "Cole a chave do Groq (só uma vez)"
@@ -257,7 +281,28 @@ import android.view.Window
          }
      }
 
-         private fun styleButton(b: Button) {
+             private fun setStatus(text: String, bg: String) {
+        runOnUiThread {
+            chip.text = text
+            chip.setTextColor(Color.WHITE)
+            val g = GradientDrawable()
+            g.setColor(Color.parseColor(bg))
+            g.cornerRadius = 12f
+            chip.background = g
+        }
+    }
+
+    private fun showFace(name: String) {
+        Thread {
+            try {
+                val url = URL("https://raw.githubusercontent.com/mochiiwuff/capri-desktop/main/assets/capri/face-" + name + ".png")
+                val bmp = BitmapFactory.decodeStream(url.openStream())
+                runOnUiThread { faceView.setImageBitmap(bmp) }
+            } catch (e: Exception) {
+            }
+        }.start()
+    }
+  private fun styleButton(b: Button) {
         b.setTextColor(Color.WHITE)
         b.typeface = Typeface.MONOSPACE
         b.isAllCaps = true
