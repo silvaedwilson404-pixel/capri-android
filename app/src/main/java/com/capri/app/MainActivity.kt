@@ -70,6 +70,14 @@ class MainActivity : Activity() {
         }
         box.addView(stop)
 
-        setContentView(box)
+        setContentView(box)        
+        val crash = java.io.File(filesDir, "crash.txt")
+        if (crash.exists()) {
+            val t = TextView(this)
+            t.text = crash.readText().take(1200)
+            t.setTextColor(Color.YELLOW)
+            t.textSize = 9f
+            box.addView(t)
+        }
     }
 }
