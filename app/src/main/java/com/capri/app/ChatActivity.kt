@@ -130,7 +130,8 @@
              .show()
      }
 
-     private fun listen() {
+     private fun listen() {        
+      setStatus("PRONTA", "#4a2fa0")
          try {
              startActivityForResult(
                  Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -146,7 +147,8 @@
          }
      }
 
-     override fun onCreate(savedInstanceState: Bundle?) {
+     override fun onCreate(savedInstanceState: Bundle?) {        
+      setStatus("PENSANDO", "#7b3ff2")
          super.onCreate(savedInstanceState)
                                requestWindowFeature(Window.FEATURE_NO_TITLE)
         val card = GradientDrawable()
@@ -436,7 +438,8 @@
          val pname = names.getOrNull(spinner.selectedItemPosition) ?: presetNames[0]
          val desc = descs.getOrNull(spinner.selectedItemPosition) ?: presetDescs[0]
          tts?.stop()
-         out.text = "Pensando..."
+         out.text = "Pensando..."        
+         setStatus("PENSANDO", "#7b3ff2")
          Thread {
              val answer = try {
                  call(key, hist, q, desc, facts)
@@ -448,7 +451,9 @@
              val m = Regex("^\\[(\\w+)\\]\\s*").find(answer)
              val tag = m?.groupValues?.get(1) ?: "calm"
              val face = if (tag in faces) tag else "calm"
-             val text = answer.replace(Regex("^\\[\\w+\\]\\s*"), "")
+             val text = answer.replace(Regex("^\\[\\w+\\]\\s*"), "")            
+             if (failed) setStatus("ERRO", "#ff2d6f") else setStatus("RESPONDEU", "#1fae6b")
+            showFace(face)
              runOnUiThread {
                  out.text = text
                  applyVoice(pname)
