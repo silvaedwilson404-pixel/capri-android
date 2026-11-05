@@ -9,8 +9,8 @@
          val old = Thread.getDefaultUncaughtExceptionHandler()
          Thread.setDefaultUncaughtExceptionHandler { t, e ->
              try {
-                 File(filesDir, "crash.txt").writeText(android.util.Log.getStackTraceString(e))
-             } catch (x: Exception) {
+                  File(filesDir, "crash.txt").writeText(java.util.Date().toString() + "\n" + android.util.Log.getStackTraceString(e))
+            } catch (x: Exception) {
              }
              old?.uncaughtException(t, e)
          }
