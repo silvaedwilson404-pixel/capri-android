@@ -283,10 +283,8 @@
          if (prefs.getString("key", "") != "" && savedInstanceState == null) {
              scroll.postDelayed({ listen() }, 300)
          }
-     }
-
-             private fun setStatus(text: String, bg: String) {    
-              private fun handleMusic(q: String): Boolean {
+     }   
+                  private fun handleMusic(q: String): Boolean {
         val low = q.lowercase().trim().trimEnd('.', '!', '?')
         val stops = listOf(
             "para", "parar", "pare", "para a música", "para a musica",
@@ -325,6 +323,17 @@
             return true
         }
         tts?.stop()
+        out.text = "Procurando..."
+        setStatus("PENSANDO", "#7b3ff2")
+        MusicPlayer.play(applicationContext, wanted) { msg ->
+            runOnUiThread {
+                out.text = msg
+                setStatus("RESPONDEU", "#1fae6b")
+            }
+        }
+        return true
+                  }
+  private fun handleMusic(q: String): Booleantts?.stop()
         out.text = "Procurando..."
         setStatus("PENSANDO", "#7b3ff2")
         MusicPlayer.play(applicationContext, wanted) { msg ->
