@@ -54,7 +54,7 @@
      private lateinit var out: TextView
      private lateinit var spinner: Spinner
      private lateinit var faceView: ImageView
-     private lateinit var chip: TextView
+     private val chip: TextView by lazy { TextView(this) }
      private lateinit var adapter: ArrayAdapter<String>
 
      private fun customList(): JSONArray {
