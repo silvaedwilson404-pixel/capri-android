@@ -182,12 +182,11 @@
         title.textSize = 18f
         title.setPadding(24, 0, 0, 0)
         head.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        chip = TextView(this)
         chip.typeface = Typeface.MONOSPACE
         chip.textSize = 12f
         chip.setPadding(20, 6, 20, 6)
         head.addView(chip)
-        box.addView(head)
+        box.addView(head)        
         setStatus("PRONTA", "#4a2fa0")
         showFace("calm")
 
