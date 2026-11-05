@@ -2,6 +2,8 @@
 
  import android.app.Activity
  import android.app.AlertDialog
+ import android.content.pm.PackageManager
+ import android.os.Build
  import android.graphics.Color
  import android.graphics.BitmapFactory
  import android.widget.ImageView
@@ -283,7 +285,56 @@
          }
      }
 
-             private fun setStatus(text: String, bg: String) {
+             private fun setStatus(text: String, bg: String) {    
+              private fun handleMusic(q: String): Boolean {
+        val low = q.lowercase().trim().trimEnd('.', '!', '?')
+        val stops = listOf(
+            "para", "parar", "pare", "para a música", "para a musica",
+            "parar a música", "parar a musica", "desliga a música", "desliga a musica"
+        )
+        val pauses = listOf("pausa", "pausar", "pausa a música", "pausa a musica")
+        val resumes = listOf("continua", "continuar", "continua a música", "continua a musica", "retoma")
+        if (low in stops) {
+            MusicPlayer.stop()
+            out.text = "Música parada."
+            setStatus("PRONTA", "#4a2fa0")
+            return true
+        }
+        if (low in pauses) {
+            MusicPlayer.pause()
+            out.text = "Música pausada."
+            setStatus("PRONTA", "#4a2fa0")
+            return true
+        }
+        if (low in resumes) {
+            MusicPlayer.resume()
+            out.text = "Continuando a música."
+            setStatus("PRONTA", "#4a2fa0")
+            return true
+        }
+        val starts = listOf("toca ", "tocar ", "toque ", "põe ", "poe ", "coloca ", "colocar ", "reproduz ")
+        val start = starts.firstOrNull { low.startsWith(it) } ?: return false
+        val wanted = low.removePrefix(start).trim()
+        val perm = if (Build.VERSION.SDK_INT >= 33)
+            "android.permission.READ_MEDIA_AUDIO"
+        else
+            "android.permission.READ_EXTERNAL_STORAGE"
+        if (checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(perm), 9)
+            out.text = "Permita o acesso aos áudios e peça de novo."
+            return true
+        }
+        tts?.stop()
+        out.text = "Procurando..."
+        setStatus("PENSANDO", "#7b3ff2")
+        MusicPlayer.play(applicationContext, wanted) { msg ->
+            runOnUiThread {
+                out.text = msg
+                setStatus("RESPONDEU", "#1fae6b")
+            }
+        }
+        return true
+             }
         runOnUiThread {
             chip.text = text
             chip.setTextColor(Color.WHITE)
@@ -410,7 +461,8 @@
              keyField.visibility = View.GONE
          }
          val key = prefs.getString("key", "") ?: ""
-         val q = ask.text.toString().trim()
+         val q = ask.text.toString().trim()        
+         if (handleMusic(q)) return
          if (key.isEmpty()) {
              out.text = "Falta colar a chave."
              return
