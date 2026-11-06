@@ -525,4 +525,66 @@
                  tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "capri")
              }
              startService(
-                 Intent(this, OverlayService::class.java)
+                 Intent(this, OverlayService::class.java)                     
+                     .setAction("FACE")
+                     .putExtra("face", face)
+                     .putExtra("talk", Math.min(12000, 800 + text.length * 70))
+             )
+         }.start()
+     }
+
+     private fun saveHistory(hist: JSONArray, q: String, a: String) {
+         hist.put(JSONObject().put("role", "user").put("content", q))
+         hist.put(JSONObject().put("role", "assistant").put("content", a))
+         val trimmed = JSONArray()
+         val start = Math.max(0, hist.length() - 12)
+         for (i in start until hist.length()) trimmed.put(hist.get(i))
+         getSharedPreferences("capri", Context.MODE_PRIVATE)
+             .edit().putString("hist", trimmed.toString()).apply()
+     }
+
+     override fun onDestroy() {
+         tts?.stop()
+         tts?.shutdown()
+         super.onDestroy()
+     }
+     private fun call(key: String, hist: JSONArray, q: String, desc: String, facts: String): String {
+         val body = JSONObject()
+         body.put("model", "openai/gpt-oss-20b")
+         val msgs = JSONArray()
+         val known = if (facts.isEmpty()) "" else
+             "Fatos que você sabe sobre o usuário, use quando fizer sentido: " +
+                 facts.replace("\n", "; ") + ". "
+         msgs.put(
+             JSONObject().put("role", "system").put(
+                 "content",
+                 "Você é Capri, uma assistente " + desc + ". " +
+                     known +
+                     "Você lembra do que já foi conversado. " +
+                     "Responda em português, em no máximo 3 frases. " +
+                     "Comece SEMPRE com uma tag de emoção entre colchetes, " +
+                     "uma destas: [calm] [laugh] [smug] [aside] [look] [many] [wide]."
+             )
+         )
+         for (i in 0 until hist.length()) msgs.put(hist.get(i))
+         msgs.put(JSONObject().put("role", "user").put("content", q))
+         body.put("messages", msgs)
+
+         val c = URL("https://api.groq.com/openai/v1/chat/completions")
+             .openConnection() as HttpURLConnection
+         c.requestMethod = "POST"
+         c.setRequestProperty("Content-Type", "application/json")
+         c.setRequestProperty("Authorization", "Bearer " + key)
+         c.setRequestProperty("User-Agent", "CapriApp/1.0")
+         c.doOutput = true
+         c.connectTimeout = 15000
+         c.readTimeout = 30000
+         c.outputStream.use { it.write(body.toString().toByteArray()) }
+
+         val code = c.responseCode
+         if (code !in 200..299) return "[wide] Erro " + code
+         val txt = c.inputStream.bufferedReader().readText()
+         return JSONObject(txt).getJSONArray("choices").getJSONObject(0)
+             .getJSONObject("message").getString("content")
+     }
+ }
