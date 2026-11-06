@@ -21,6 +21,7 @@
      private val LARGURA = 220
      private val ALTURA = 380
      private var web: WebView? = null
+     private var capriLp: WindowManager.LayoutParams? = null
 
      class Bridge(
          private val wm: WindowManager,
@@ -32,6 +33,14 @@
          private var savedX = 0
          private var savedY = 0
          private var big = false
+
+         @Volatile
+         var asleep = false
+
+         @JavascriptInterface
+         fun zzz(value: Boolean) {
+             asleep = value
+         }
 
          @JavascriptInterface
          fun size(wdp: Int, hdp: Int, isBig: Boolean) {
@@ -65,6 +74,11 @@
          if (intent?.action == "FACE") {
              val face = intent.getStringExtra("face") ?: "calm"
              val talk = intent.getIntExtra("talk", 4000)
+             val text = intent.getStringExtra("text") ?: ""
+             val l = capriLp
+             if (text.isNotEmpty() && l != null) {
+                 Bubble.show(applicationContext, text, l)
+             }
              web?.post {
                  web?.evaluateJavascript(
                      "setFace('" + face + "');setTimeout(function(){talk(" + talk + ",'" + face + "')},900)",
@@ -124,12 +138,14 @@
          lp.gravity = Gravity.TOP or Gravity.START
          lp.x = 0
          lp.y = (200 * d).toInt()
+         capriLp = lp
 
          val w = WebView(this)
          w.setBackgroundColor(Color.TRANSPARENT)
          w.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
          w.settings.javaScriptEnabled = true
-         w.addJavascriptInterface(Bridge(wm, lp, w, d, sw), "Native")
+         val bridge = Bridge(wm, lp, w, d, sw)
+         w.addJavascriptInterface(bridge, "Native")
 
          var sx = 0
          var sy = 0
@@ -138,6 +154,7 @@
          var moved = false
          var peeking = false
          var peekSide = -1
+         var wasAsleep = false
          w.setOnTouchListener { _, e ->
              when (e.action) {
                  MotionEvent.ACTION_DOWN -> {
@@ -146,6 +163,8 @@
                      tx = e.rawX
                      ty = e.rawY
                      moved = false
+                     wasAsleep = bridge.asleep
+                     w.evaluateJavascript("wake()", null)
                  }
                  MotionEvent.ACTION_MOVE -> {
                      val dx = (e.rawX - tx).toInt()
@@ -163,12 +182,15 @@
                  }
                  MotionEvent.ACTION_UP -> {
                      if (!moved) {
-                         if (peeking) {
+                         if (wasAsleep) {
+                             wasAsleep = false
+                         } else if (peeking) {
                              val target = if (peekSide < 0) 0 else sw - lp.width
                              slideTo(wm, lp, w, target)
                              peeking = false
                              w.evaluateJavascript("unpeek()", null)
                          } else {
+                             Bubble.hide()
                              startActivity(
                                  Intent(this, ChatActivity::class.java)
                                      .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -192,6 +214,7 @@
              }
              true
          }
+
          val base = "file:///android_asset/capri/"
          val html = """
  <body style="margin:0;background:transparent;overflow:hidden;height:100vh">
@@ -199,6 +222,7 @@
  <img src="capri-cutout.png" style="width:100%;height:100%;object-fit:contain">
  </div>
  <img id="r" src="face-calm.png" style="position:absolute;right:6px;bottom:10px;width:76px;height:76px;object-fit:cover;border-radius:50%;box-shadow:0 2px 10px rgba(0,0,0,.6);transition:opacity .25s">
+ <div id="zz"><span>z</span><span>Z</span><span>Z</span></div>
  <img id="cu" src="intro-grab.webp" style="display:none;position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain">
  <style>
  #b{animation:pop .6s ease-out 1,idle 4s ease-in-out .6s infinite}
@@ -208,6 +232,15 @@
  @keyframes peekL{0%,100%{transform:rotate(3deg)}50%{transform:rotate(8deg) translateY(-6px)}}
  #b.peekR{animation:peekR 3.5s ease-in-out infinite}
  @keyframes peekR{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(-8deg) translateY(-6px)}}
+ #b.sleep{animation:snore 4s ease-in-out infinite;filter:brightness(.6) saturate(.7)}
+ @keyframes snore{0%,100%{transform:scale(.7,.62) rotate(-6deg)}50%{transform:scale(.72,.65) rotate(-6deg)}}
+ #b.jolt{animation:jolt .5s ease-out 1}
+ @keyframes jolt{0%{transform:scale(.8) rotate(-6deg)}40%{transform:translateY(-24px) scale(1.05)}100%{transform:scale(1)}}
+ #zz{display:none;position:absolute;left:58%;top:38%;font:bold 22px monospace;color:#c9b8ff;pointer-events:none}
+ #zz span{position:absolute;opacity:0;animation:zz 3s ease-in infinite}
+ #zz span:nth-child(2){animation-delay:1s;left:10px}
+ #zz span:nth-child(3){animation-delay:2s;left:22px}
+ @keyframes zz{0%{transform:translate(0,0) scale(.6);opacity:0}30%{opacity:1}100%{transform:translate(18px,-60px) scale(1.3);opacity:0}}
  #b.laugh{animation:laugh .5s ease-in-out 4}
  @keyframes laugh{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-16px) rotate(-4deg)}75%{transform:translateY(-16px) rotate(4deg)}}
  #b.jump{animation:jump .7s ease-out 1}
@@ -224,28 +257,58 @@
  <script>
  var b=document.getElementById('b');
  var cu=document.getElementById('cu');
+ var zz=document.getElementById('zz');
  var busy=false;
  var peeking=false;
+ var peekCls='';
+ var asleep=false;
+ var sleepMs=60000;
+ var sleepT=null;
  var map={laugh:'laugh',wide:'jump',smug:'smug',aside:'aside',look:'look',many:'glitch'};
  ['grab','mouth1','mouth2','mouth3','wave1','wave2','wave3','smear','happy'].forEach(function(n){new Image().src='intro-'+n+'.webp'});
+ function arm(){
+ clearTimeout(sleepT);
+ sleepT=setTimeout(sleep,sleepMs);
+ }
+ function sleep(){
+ if(busy){arm();return}
+ asleep=true;
+ Native.zzz(true);
+ b.className='sleep';
+ zz.style.display='block';
+ r.style.opacity=0.35;
+ }
+ function wake(){
+ arm();
+ if(!asleep){return}
+ asleep=false;
+ Native.zzz(false);
+ zz.style.display='none';
+ r.style.opacity=1;
+ b.className='jolt';
+ setTimeout(function(){b.className=peeking?peekCls:''},500);
+ }
  function peek(side){
  peeking=true;
- b.className=(side==='L')?'peekL':'peekR';
+ peekCls=(side==='L')?'peekL':'peekR';
+ if(!asleep){b.className=peekCls}
  }
  function unpeek(){
  peeking=false;
- b.className='';
+ peekCls='';
+ if(!asleep){b.className=''}
  }
  function react(n){
  var cls=map[n];
  if(!cls){return}
- if(busy||peeking){return}
+ if(busy||peeking||asleep){return}
  b.className='';
  void b.offsetWidth;
  b.className=cls;
- setTimeout(function(){if(!peeking){b.className=''}},2400);
+ setTimeout(function(){if(!peeking&&!asleep){b.className=''}},2400);
  }
  function setFace(n){
+ wake();
  r.style.opacity=0;
  setTimeout(function(){r.src='face-'+n+'.png';r.style.opacity=1},250);
  react(n);
@@ -265,6 +328,7 @@
  b.style.display='block';
  r.style.display='block';
  busy=false;
+ arm();
  }
  function greet(){
  if(busy){return}
@@ -290,6 +354,7 @@
  var pool=['many','wide','smug','aside','look','laugh'];
  setInterval(function(){react(pool[Math.floor(Math.random()*pool.length)])},9000);
  setTimeout(greet,1500);
+ arm();
  </script>
  </body>
  """
@@ -299,8 +364,10 @@
      }
 
      override fun onDestroy() {
+         Bubble.hide()
          web?.let { (getSystemService(WINDOW_SERVICE) as WindowManager).removeView(it) }
          web = null
+         capriLp = null
          super.onDestroy()
      }
  }
