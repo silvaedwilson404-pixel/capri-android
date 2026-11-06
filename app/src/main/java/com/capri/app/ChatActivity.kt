@@ -419,7 +419,29 @@
      }
 
      private fun handleMusic(q: String): Boolean {
-         val low = q.lowercase().trim().trimEnd('.', '!', '?')
+         val low = q.lowercase().trim().trimEnd('.', '!', '?')         
+               if (MusicPlayer.isListCommand(low)) {
+             val p0 = if (Build.VERSION.SDK_INT >= 33) {
+                 "android.permission.READ_MEDIA_AUDIO"
+             } else {
+                 "android.permission.READ_EXTERNAL_STORAGE"
+             }
+             if (checkSelfPermission(p0) != PackageManager.PERMISSION_GRANTED) {
+                 requestPermissions(arrayOf(p0), 9)
+                 out.text = "Permita o acesso aos áudios e peça de novo."
+                 return true
+             }
+             tts?.stop()
+             out.text = "Procurando..."
+             setStatus("PENSANDO", "#7b3ff2")
+             MusicPlayer.command(applicationContext, low) { msg ->
+                 runOnUiThread {
+                     out.text = msg
+                     setStatus("RESPONDEU", "#1fae6b")
+                 }
+             }
+             return true
+         }
          val stops = listOf(
              "para", "parar", "pare", "para a música", "para a musica",
              "parar a música", "parar a musica", "desliga a música", "desliga a musica"
