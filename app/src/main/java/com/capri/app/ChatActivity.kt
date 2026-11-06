@@ -2,27 +2,27 @@
 
  import android.app.Activity
  import android.app.AlertDialog
- import android.content.pm.PackageManager
- import android.os.Build
- import android.graphics.Color
- import android.graphics.BitmapFactory
- import android.widget.ImageView
- import android.graphics.Typeface
- import android.graphics.drawable.GradientDrawable
- import android.view.Window
  import android.content.ActivityNotFoundException
  import android.content.Context
  import android.content.Intent
+ import android.content.pm.PackageManager
+ import android.graphics.BitmapFactory
+ import android.graphics.Color
+ import android.graphics.Typeface
+ import android.graphics.drawable.GradientDrawable
+ import android.os.Build
  import android.os.Bundle
  import android.speech.RecognizerIntent
  import android.speech.tts.TextToSpeech
  import android.text.InputType
  import android.view.Gravity
  import android.view.View
+ import android.view.Window
  import android.widget.AdapterView
  import android.widget.ArrayAdapter
  import android.widget.Button
  import android.widget.EditText
+ import android.widget.ImageView
  import android.widget.LinearLayout
  import android.widget.ScrollView
  import android.widget.Spinner
@@ -132,8 +132,8 @@
              .show()
      }
 
-     private fun listen() {        
-      setStatus("PRONTA", "#4a2fa0")
+     private fun listen() {
+         setStatus("OUVINDO", "#ff2d6f")
          try {
              startActivityForResult(
                  Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -149,15 +149,14 @@
          }
      }
 
-     override fun onCreate(savedInstanceState: Bundle?) {        
-      setStatus("PENSANDO", "#7b3ff2")
+     override fun onCreate(savedInstanceState: Bundle?) {
          super.onCreate(savedInstanceState)
-                               requestWindowFeature(Window.FEATURE_NO_TITLE)
-        val card = GradientDrawable()
-        card.setColor(Color.parseColor("#0f0b1a"))
-        card.setStroke(6, Color.parseColor("#7b3ff2"))
-        card.cornerRadius = 36f
-        window.setBackgroundDrawable(card)
+         requestWindowFeature(Window.FEATURE_NO_TITLE)
+         val card = GradientDrawable()
+         card.setColor(Color.parseColor("#0f0b1a"))
+         card.setStroke(6, Color.parseColor("#7b3ff2"))
+         card.cornerRadius = 36f
+         window.setBackgroundDrawable(card)
          val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
 
          tts = TextToSpeech(this) { status ->
@@ -170,27 +169,28 @@
 
          val box = LinearLayout(this)
          box.orientation = LinearLayout.VERTICAL
-         box.setPadding(40, 40, 40, 40)        
-      val head = LinearLayout(this)
-        head.orientation = LinearLayout.HORIZONTAL
-        head.gravity = Gravity.CENTER_VERTICAL
-        faceView = ImageView(this)
-        faceView.scaleType = ImageView.ScaleType.CENTER_CROP
-        head.addView(faceView, LinearLayout.LayoutParams(160, 160))
-        val title = TextView(this)
-        title.text = "CAPRI"
-        title.setTextColor(Color.WHITE)
-        title.typeface = Typeface.MONOSPACE
-        title.textSize = 18f
-        title.setPadding(24, 0, 0, 0)
-        head.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        chip.typeface = Typeface.MONOSPACE
-        chip.textSize = 12f
-        chip.setPadding(20, 6, 20, 6)
-        head.addView(chip)
-        box.addView(head)        
-        setStatus("PRONTA", "#4a2fa0")
-        showFace("calm")
+         box.setPadding(40, 40, 40, 40)
+
+         val head = LinearLayout(this)
+         head.orientation = LinearLayout.HORIZONTAL
+         head.gravity = Gravity.CENTER_VERTICAL
+         faceView = ImageView(this)
+         faceView.scaleType = ImageView.ScaleType.CENTER_CROP
+         head.addView(faceView, LinearLayout.LayoutParams(160, 160))
+         val title = TextView(this)
+         title.text = "CAPRI"
+         title.setTextColor(Color.WHITE)
+         title.typeface = Typeface.MONOSPACE
+         title.textSize = 18f
+         title.setPadding(24, 0, 0, 0)
+         head.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+         chip.typeface = Typeface.MONOSPACE
+         chip.textSize = 12f
+         chip.setPadding(20, 6, 20, 6)
+         head.addView(chip)
+         box.addView(head)
+         setStatus("PRONTA", "#4a2fa0")
+         showFace("calm")
 
          keyField = EditText(this)
          keyField.hint = "Cole a chave do Groq (só uma vez)"
@@ -266,117 +266,70 @@
          out.setPadding(0, 24, 0, 0)
          box.addView(out)
 
-                 for (i in 0 until box.childCount) {
-            val v = box.getChildAt(i)
-            if (v is Button) {
-                styleButton(v)
-            } else if (v is EditText) {
-                v.setTextColor(Color.WHITE)
-                v.setHintTextColor(Color.parseColor("#8a7fa8"))
-                v.typeface = Typeface.MONOSPACE
-            }
-                 }
-      val scroll = ScrollView(this)
+         for (i in 0 until box.childCount) {
+             val v = box.getChildAt(i)
+             if (v is Button) {
+                 styleButton(v)
+             } else if (v is EditText) {
+                 v.setTextColor(Color.WHITE)
+                 v.setHintTextColor(Color.parseColor("#8a7fa8"))
+                 v.typeface = Typeface.MONOSPACE
+             }
+         }
+
+         val scroll = ScrollView(this)
          scroll.addView(box)
          setContentView(scroll)
 
          if (prefs.getString("key", "") != "" && savedInstanceState == null) {
              scroll.postDelayed({ listen() }, 300)
          }
-     }   
-                  private fun handleMusic(q: String): Boolean {
-        val low = q.lowercase().trim().trimEnd('.', '!', '?')
-        val stops = listOf(
-            "para", "parar", "pare", "para a música", "para a musica",
-            "parar a música", "parar a musica", "desliga a música", "desliga a musica"
-        )
-        val pauses = listOf("pausa", "pausar", "pausa a música", "pausa a musica")
-        val resumes = listOf("continua", "continuar", "continua a música", "continua a musica", "retoma")
-        if (low in stops) {
-            MusicPlayer.stop()
-            out.text = "Música parada."
-            setStatus("PRONTA", "#4a2fa0")
-            return true
-        }
-        if (low in pauses) {
-            MusicPlayer.pause()
-            out.text = "Música pausada."
-            setStatus("PRONTA", "#4a2fa0")
-            return true
-        }
-        if (low in resumes) {
-            MusicPlayer.resume()
-            out.text = "Continuando a música."
-            setStatus("PRONTA", "#4a2fa0")
-            return true
-        }
-        val starts = listOf("toca ", "tocar ", "toque ", "põe ", "poe ", "coloca ", "colocar ", "reproduz ")
-        val start = starts.firstOrNull { low.startsWith(it) } ?: return false
-        val wanted = low.removePrefix(start).trim()
-        val perm = if (Build.VERSION.SDK_INT >= 33)
-            "android.permission.READ_MEDIA_AUDIO"
-        else
-            "android.permission.READ_EXTERNAL_STORAGE"
-        if (checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(perm), 9)
-            out.text = "Permita o acesso aos áudios e peça de novo."
-            return true
-        }
-        tts?.stop()
-        out.text = "Procurando..."
-        setStatus("PENSANDO", "#7b3ff2")
-        MusicPlayer.play(applicationContext, wanted) { msg ->
-            runOnUiThread {
-                out.text = msg
-                setStatus("RESPONDEU", "#1fae6b")
-            }
-        }
-        return true
-                  }
-  private fun handleMusic(q: String): Booleantts?.stop()
-        out.text = "Procurando..."
-        setStatus("PENSANDO", "#7b3ff2")
-        MusicPlayer.play(applicationContext, wanted) { msg ->
-            runOnUiThread {
-                out.text = msg
-                setStatus("RESPONDEU", "#1fae6b")
-            }
-        }
-        return true
-             }
-        runOnUiThread {
-            chip.text = text
-            chip.setTextColor(Color.WHITE)
-            val g = GradientDrawable()
-            g.setColor(Color.parseColor(bg))
-            g.cornerRadius = 12f
-            chip.background = g
-        }
-    }
+     }
 
-    private fun showFace(name: String) {
-        Thread {
-            try {
-                val url = URL("https://raw.githubusercontent.com/mochiiwuff/capri-desktop/main/assets/capri/face-" + name + ".png")
-                val bmp = BitmapFactory.decodeStream(url.openStream())
-                runOnUiThread { faceView.setImageBitmap(bmp) }
-            } catch (e: Exception) {
-            }
-        }.start()
-    }
-  private fun styleButton(b: Button) {
-        b.setTextColor(Color.WHITE)
-        b.typeface = Typeface.MONOSPACE
-        b.isAllCaps = true
-        b.textSize = 13f
-        val g = GradientDrawable()
-        g.setColor(Color.parseColor("#1a1428"))
-        g.setStroke(4, Color.parseColor("#7b3ff2"))
-        g.cornerRadius = 24f
-        b.background = g
-        b.stateListAnimator = null
+     private fun setStatus(text: String, bg: String) {
+         runOnUiThread {
+             try {
+                 chip.text = text
+                 chip.setTextColor(Color.WHITE)
+                 val g = GradientDrawable()
+                 g.setColor(Color.parseColor(bg))
+                 g.cornerRadius = 12f
+                 chip.background = g
+             } catch (e: Exception) {
+             }
          }
-  private fun chooseVoice() {
+     }
+
+     private fun showFace(name: String) {
+         Thread {
+             try {
+                 val url = URL("https://raw.githubusercontent.com/mochiiwuff/capri-desktop/main/assets/capri/face-" + name + ".png")
+                 val bmp = BitmapFactory.decodeStream(url.openStream())
+                 runOnUiThread {
+                     try {
+                         if (::faceView.isInitialized) faceView.setImageBitmap(bmp)
+                     } catch (e: Exception) {
+                     }
+                 }
+             } catch (e: Exception) {
+             }
+         }.start()
+     }
+
+     private fun styleButton(b: Button) {
+         b.setTextColor(Color.WHITE)
+         b.typeface = Typeface.MONOSPACE
+         b.isAllCaps = true
+         b.textSize = 13f
+         val g = GradientDrawable()
+         g.setColor(Color.parseColor("#1a1428"))
+         g.setStroke(4, Color.parseColor("#7b3ff2"))
+         g.cornerRadius = 24f
+         b.background = g
+         b.stateListAnimator = null
+     }
+
+     private fun chooseVoice() {
          val name = names.getOrNull(spinner.selectedItemPosition) ?: return
          val cur = styleOf(name)
          AlertDialog.Builder(this)
@@ -452,6 +405,7 @@
 
      override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
          super.onActivityResult(requestCode, resultCode, data)
+         setStatus("PRONTA", "#4a2fa0")
          if (requestCode == 7 && resultCode == RESULT_OK) {
              val said = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
              if (said != null) {
@@ -460,62 +414,115 @@
              }
          }
      }
-private fun setStatus(text: String, bg: String) {
-    runOnUiThread {
-        try {
-     private fun saveHistory(hist: JSONArray, q: String, a: String) {
-         hist.put(JSONObject().put("role", "user").put("content", q))
-         hist.put(JSONObject().put("role", "assistant").put("content", a))
-         val trimmed = JSONArray()
-         val start = Math.max(0, hist.length() - 12)
-         for (i in start until hist.length()) trimmed.put(hist.get(i))
-         getSharedPreferences("capri", Context.MODE_PRIVATE)
-             .edit().putString("hist", trimmed.toString()).apply()
-     }
 
-     override fun onDestroy() {
-         tts?.stop()
-         tts?.shutdown()
-         super.onDestroy()
-     }
-
-     private fun call(key: String, hist: JSONArray, q: String, desc: String, facts: String): String {
-         val body = JSONObject()
-         body.put("model", "openai/gpt-oss-20b")
-         val msgs = JSONArray()
-         val known = if (facts.isEmpty()) "" else
-             "Fatos que você sabe sobre o usuário, use quando fizer sentido: " +
-                 facts.replace("\n", "; ") + ". "
-         msgs.put(
-             JSONObject().put("role", "system").put(
-                 "content",
-                 "Você é Capri, uma assistente " + desc + ". " +
-                     known +
-                     "Você lembra do que já foi conversado. " +
-                     "Responda em português, em no máximo 3 frases. " +
-                     "Comece SEMPRE com uma tag de emoção entre colchetes, " +
-                     "uma destas: [calm] [laugh] [smug] [aside] [look] [many] [wide]."
-             )
+     private fun handleMusic(q: String): Boolean {
+         val low = q.lowercase().trim().trimEnd('.', '!', '?')
+         val stops = listOf(
+             "para", "parar", "pare", "para a música", "para a musica",
+             "parar a música", "parar a musica", "desliga a música", "desliga a musica"
          )
-         for (i in 0 until hist.length()) msgs.put(hist.get(i))
-         msgs.put(JSONObject().put("role", "user").put("content", q))
-         body.put("messages", msgs)
-
-         val c = URL("https://api.groq.com/openai/v1/chat/completions")
-             .openConnection() as HttpURLConnection
-         c.requestMethod = "POST"
-         c.setRequestProperty("Content-Type", "application/json")
-         c.setRequestProperty("Authorization", "Bearer " + key)
-         c.setRequestProperty("User-Agent", "CapriApp/1.0")
-         c.doOutput = true
-         c.connectTimeout = 15000
-         c.readTimeout = 30000
-         c.outputStream.use { it.write(body.toString().toByteArray()) }
-
-         val code = c.responseCode
-         if (code !in 200..299) return "[wide] Erro " + code
-         val txt = c.inputStream.bufferedReader().readText()
-         return JSONObject(txt).getJSONArray("choices").getJSONObject(0)
-             .getJSONObject("message").getString("content")
+         val pauses = listOf("pausa", "pausar", "pausa a música", "pausa a musica")
+         val resumes = listOf("continua", "continuar", "continua a música", "continua a musica", "retoma")
+         if (low in stops) {
+             MusicPlayer.stop()
+             out.text = "Música parada."
+             setStatus("PRONTA", "#4a2fa0")
+             return true
+         }
+         if (low in pauses) {
+             MusicPlayer.pause()
+             out.text = "Música pausada."
+             setStatus("PRONTA", "#4a2fa0")
+             return true
+         }
+         if (low in resumes) {
+             MusicPlayer.resume()
+             out.text = "Continuando a música."
+             setStatus("PRONTA", "#4a2fa0")
+             return true
+         }
+         val starts = listOf("toca ", "tocar ", "toque ", "põe ", "poe ", "coloca ", "colocar ", "reproduz ")
+         val start = starts.firstOrNull { low.startsWith(it) } ?: return false
+         val wanted = low.removePrefix(start).trim()
+         val perm = if (Build.VERSION.SDK_INT >= 33) {
+             "android.permission.READ_MEDIA_AUDIO"
+         } else {
+             "android.permission.READ_EXTERNAL_STORAGE"
+         }
+         if (checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
+             requestPermissions(arrayOf(perm), 9)
+             out.text = "Permita o acesso aos áudios e peça de novo."
+             return true
+         }
+         tts?.stop()
+         out.text = "Procurando..."
+         setStatus("PENSANDO", "#7b3ff2")
+         MusicPlayer.play(applicationContext, wanted) { msg ->
+             runOnUiThread {
+                 out.text = msg
+                 setStatus("RESPONDEU", "#1fae6b")
+             }
+         }
+         return true
      }
- }
+
+     private fun sendQuestion() {
+         val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
+         val typed = keyField.text.toString().trim()
+         if (keyField.visibility == View.VISIBLE && typed.isNotEmpty()) {
+             prefs.edit().putString("key", typed).apply()
+             keyField.setText("")
+             keyField.visibility = View.GONE
+         }
+         val key = prefs.getString("key", "") ?: ""
+         val q = ask.text.toString().trim()
+         if (handleMusic(q)) return
+         if (key.isEmpty()) {
+             out.text = "Falta colar a chave."
+             return
+         }
+         if (q.isEmpty()) return
+
+         val rem = Regex(
+             "^(lembre|lembra|anote|anota|guarde|guarda)\\s+que\\s+(.+)$",
+             RegexOption.IGNORE_CASE
+         ).find(q)
+         if (rem != null) {
+             val fact = rem.groupValues[2].trim().trimEnd('.')
+             val cur = getFacts()
+             val upd = if (cur.isEmpty()) fact else cur + "\n" + fact
+             saveFacts(upd.takeLast(2000))
+         }
+         val facts = getFacts()
+
+         val hist = try {
+             JSONArray(prefs.getString("hist", "[]"))
+         } catch (e: Exception) {
+             JSONArray()
+         }
+         val pname = names.getOrNull(spinner.selectedItemPosition) ?: presetNames[0]
+         val desc = descs.getOrNull(spinner.selectedItemPosition) ?: presetDescs[0]
+         tts?.stop()
+         out.text = "Pensando..."
+         setStatus("PENSANDO", "#7b3ff2")
+         Thread {
+             val answer = try {
+                 call(key, hist, q, desc, facts)
+             } catch (e: Exception) {
+                 "[wide] Deu erro: " + e.message
+             }
+             val failed = answer.startsWith("[wide] Erro") || answer.startsWith("[wide] Deu erro")
+             if (!failed) saveHistory(hist, q, answer)
+             val m = Regex("^\\[(\\w+)\\]\\s*").find(answer)
+             val tag = m?.groupValues?.get(1) ?: "calm"
+             val face = if (tag in faces) tag else "calm"
+             val text = answer.replace(Regex("^\\[\\w+\\]\\s*"), "")
+             if (failed) setStatus("ERRO", "#ff2d6f") else setStatus("RESPONDEU", "#1fae6b")
+             showFace(face)
+             runOnUiThread {
+                 out.text = text
+                 applyVoice(pname)
+                 tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "capri")
+             }
+             startService(
+                 Intent(this, OverlayService::class.java)
