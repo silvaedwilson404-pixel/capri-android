@@ -531,8 +531,8 @@
                  Intent(this, OverlayService::class.java)                     
                      .setAction("FACE")
                      .putExtra("face", face)
-                     .putExtra("talk", Math.min(12000, 800 + text.length * 70))
-             )
+                     .putExtra("talk", Math.min(12000, 800 + text.length * 70))                     
+                     .putExtra("text", text)
          }.start()
      }
 
