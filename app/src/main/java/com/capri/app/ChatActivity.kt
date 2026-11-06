@@ -460,73 +460,9 @@
              }
          }
      }
-
-     private fun sendQuestion() {
-         val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
-         val typed = keyField.text.toString().trim()
-         if (keyField.visibility == View.VISIBLE && typed.isNotEmpty()) {
-             prefs.edit().putString("key", typed).apply()
-             keyField.setText("")
-             keyField.visibility = View.GONE
-         }
-         val key = prefs.getString("key", "") ?: ""
-         val q = ask.text.toString().trim()        
-         if (handleMusic(q)) return
-         if (key.isEmpty()) {
-             out.text = "Falta colar a chave."
-             return
-         }
-         if (q.isEmpty()) return
-
-         val rem = Regex(
-             "^(lembre|lembra|anote|anota|guarde|guarda)\\s+que\\s+(.+)$",
-             RegexOption.IGNORE_CASE
-         ).find(q)
-         if (rem != null) {
-             val fact = rem.groupValues[2].trim().trimEnd('.')
-             val cur = getFacts()
-             val upd = if (cur.isEmpty()) fact else cur + "\n" + fact
-             saveFacts(upd.takeLast(2000))
-         }
-         val facts = getFacts()
-
-         val hist = try {
-             JSONArray(prefs.getString("hist", "[]"))
-         } catch (e: Exception) {
-             JSONArray()
-         }
-         val pname = names.getOrNull(spinner.selectedItemPosition) ?: presetNames[0]
-         val desc = descs.getOrNull(spinner.selectedItemPosition) ?: presetDescs[0]
-         tts?.stop()
-         out.text = "Pensando..."        
-         setStatus("PENSANDO", "#7b3ff2")
-         Thread {
-             val answer = try {
-                 call(key, hist, q, desc, facts)
-             } catch (e: Exception) {
-                 "[wide] Deu erro: " + e.message
-             }
-             val failed = answer.startsWith("[wide] Erro") || answer.startsWith("[wide] Deu erro")
-             if (!failed) saveHistory(hist, q, answer)
-             val m = Regex("^\\[(\\w+)\\]\\s*").find(answer)
-             val tag = m?.groupValues?.get(1) ?: "calm"
-             val face = if (tag in faces) tag else "calm"
-             val text = answer.replace(Regex("^\\[\\w+\\]\\s*"), "")            
-             if (failed) setStatus("ERRO", "#ff2d6f") else setStatus("RESPONDEU", "#1fae6b")
-            showFace(face)
-             runOnUiThread {
-                 out.text = text
-                 applyVoice(pname)
-                 tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "capri")
-             }
-             startService(
-                 Intent(this, OverlayService::class.java)
-                     .setAction("FACE")
-                     .putExtra("face", face)
-             )
-         }.start()
-     }
-
+private fun setStatus(text: String, bg: String) {
+    runOnUiThread {
+        try {
      private fun saveHistory(hist: JSONArray, q: String, a: String) {
          hist.put(JSONObject().put("role", "user").put("content", q))
          hist.put(JSONObject().put("role", "assistant").put("content", a))
