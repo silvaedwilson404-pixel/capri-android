@@ -303,8 +303,11 @@
      private fun showFace(name: String) {
          Thread {
              try {
-                 val url = URL("https://raw.githubusercontent.com/mochiiwuff/capri-desktop/main/assets/capri/face-" + name + ".png")
-                 val bmp = BitmapFactory.decodeStream(url.openStream())
+                                 val bmp = try {
+                     assets.open("capri/face-" + name + ".png").use { BitmapFactory.decodeStream(it) }
+                 } catch (e: Exception) {
+                     BitmapFactory.decodeStream(URL("https://raw.githubusercontent.com/mochiiwuff/capri-desktop/main/assets/capri/face-" + name + ".png").openStream())
+                                 }
                  runOnUiThread {
                      try {
                          if (::faceView.isInitialized) faceView.setImageBitmap(bmp)
