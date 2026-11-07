@@ -14,8 +14,8 @@
 
      fun handle(act: Activity, q: String): String? {
          val low = q.lowercase().trim().trimEnd('.', '!', '?')
-         val rem = Reminders.handle(act, low)
-         if (rem != null) return rem
+          val gm = GoodMorning.handle(act, low)
+         if (gm != null) return gm
          if (!low.contains("notifica")) return null
          val prefs = act.getSharedPreferences("capri", Context.MODE_PRIVATE)
          val off = listOf(
