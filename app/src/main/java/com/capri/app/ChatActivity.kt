@@ -501,7 +501,13 @@
          }
          val key = prefs.getString("key", "") ?: ""
          val q = ask.text.toString().trim()
-         if (handleMusic(q)) return
+         if (handleMusic(q)) return         
+      val extra = Extras.handle(this, q)
+         if (extra != null) {
+             out.text = extra
+             setStatus("RESPONDEU", "#1fae6b")
+             return
+         }
          if (key.isEmpty()) {
              out.text = "Falta colar a chave."
              return
