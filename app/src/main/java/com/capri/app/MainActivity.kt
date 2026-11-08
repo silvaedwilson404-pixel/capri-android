@@ -14,7 +14,12 @@ import android.widget.TextView
 
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+        super.onCreate(savedInstanceState)        
+        if (Settings.canDrawOverlays(this) && Speaker.capriOn(this)) {
+            startActivity(Intent(this, ChatActivity::class.java))
+            finish()
+            return
+        }
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"), 1)
         }
