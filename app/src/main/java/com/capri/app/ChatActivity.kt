@@ -579,6 +579,7 @@
          tts?.stop()
          tts?.shutdown()
          super.onDestroy()
+      WakeService.resume()
      }
      private fun call(key: String, hist: JSONArray, q: String, desc: String, facts: String): String {
          val body = JSONObject()
