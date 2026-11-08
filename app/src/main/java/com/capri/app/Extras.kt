@@ -1,8 +1,11 @@
  package com.capri.app
 
+ import android.Manifest
  import android.app.Activity
  import android.content.Context
  import android.content.Intent
+ import android.content.pm.PackageManager
+ import android.os.Build
  import android.provider.Settings
 
  object Extras {
@@ -12,8 +15,29 @@
          return s.contains(act.packageName)
      }
 
+     private fun wake(act: Activity, low: String): String? {
+         if (!low.contains("palavra de ativa")) return null
+         val prefs = act.getSharedPreferences("capri", Context.MODE_PRIVATE)
+         val off = listOf("desliga", "desativa", "para ", "pare ", "cancela")
+         if (off.any { low.startsWith(it) }) {
+             prefs.edit().putBoolean("wake_on", false).apply()
+             act.startService(Intent(act, WakeService::class.java).setAction("STOP_WAKE"))
+             return "Palavra de ativação desligada."
+         }
+         if (act.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+             act.requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 11)
+             return "Permita o microfone e peça de novo."
+         }
+         prefs.edit().putBoolean("wake_on", true).apply()
+         val i = Intent(act, WakeService::class.java)
+         if (Build.VERSION.SDK_INT >= 26) act.startForegroundService(i) else act.startService(i)
+         return "Ligada. Na primeira vez ela baixa o modelo de voz, com internet. Depois é só dizer Capri."
+     }
+
      fun handle(act: Activity, q: String): String? {
          val low = q.lowercase().trim().trimEnd('.', '!', '?')
+         val w = wake(act, low)
+         if (w != null) return w
          val rem = Reminders.handle(act, low)
          if (rem != null) return rem
          val gm = GoodMorning.handle(act, low)
