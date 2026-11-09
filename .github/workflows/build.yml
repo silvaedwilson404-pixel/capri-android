@@ -19,7 +19,12 @@
            set +e
            gradle assembleDebug --no-daemon --console=plain > build.log 2>&1
            code=$?
-           grep -E "^e: |Could not|What went wrong|Execution failed|Duplicate class|error:" build.log | head -20 | sed 's/^/::error::/'
+           {
+             echo '## Erro do build'
+             echo '```'
+             grep -E "^e: |What went wrong|Could not|error:" -A 6 build.log | head -60
+             echo '```'
+           } >> "$GITHUB_STEP_SUMMARY"
            exit $code
        - uses: actions/upload-artifact@v4
          with:
