@@ -29,9 +29,15 @@
      private var recognizer: Recognizer? = null
      private var listening = false
      private var started = false
+     private var failMsg = ""
+     private var lastCode = 0
      private val main = Handler(Looper.getMainLooper())
      private val resumeRun = Runnable { resumeNow() }
      private val trigger = Regex("\\b(capri|cápri|kapri|capre|cabri|capry)\\b")
+     private val urls = listOf(
+         "https://alphacephei.com/vosk/models/vosk-model-small-pt-0.3.zip",
+         "https://huggingface.co/rhasspy/vosk-models/resolve/main/pt/vosk-model-small-pt-0.3.zip"
+     )
 
      private val listener = object : RecognitionListener {
          override fun onPartialResult(hypothesis: String?) {
@@ -113,24 +119,29 @@
              .build()
      }
 
-     private fun ensureModel(): File? {
-         val root = File(filesDir, "vosk")
-         val ok = File(root, "model.ok")
-         if (ok.exists()) {
-             val found = root.listFiles()?.firstOrNull {
-                 it.isDirectory && File(it, "conf").exists()
+     private fun open(url: String): HttpURLConnection? {
+         var u = url
+         for (i in 0 until 6) {
+             val c = URL(u).openConnection() as HttpURLConnection
+             c.connectTimeout = 20000
+             c.readTimeout = 60000
+             c.instanceFollowRedirects = false
+             c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) CapriApp/1.3")
+             val code = c.responseCode
+             if (code in 300..399) {
+                 val loc = c.getHeaderField("Location")
+                 c.disconnect()
+                 if (loc == null) return null
+                 u = URL(URL(u), loc).toString()
+                 continue
              }
-             if (found != null) return found
+             lastCode = code
+             return if (code in 200..299) c else null
          }
-         root.deleteRecursively()
-         root.mkdirs()
-         say("Baixando o modelo de voz (uns 31 MB)...")
-         val c = URL("https://alphacephei.com/vosk/models/vosk-model-small-pt-0.3.zip")
-             .openConnection() as HttpURLConnection
-         c.connectTimeout = 20000
-         c.readTimeout = 60000
-         c.instanceFollowRedirects = true
-         if (c.responseCode !in 200..299) return null
+         return null
+     }
+
+     private fun unzip(c: HttpURLConnection, root: File) {
          val rootPath = root.canonicalPath
          ZipInputStream(c.inputStream.buffered()).use { zin ->
              var entry = zin.nextEntry
@@ -149,11 +160,43 @@
                  entry = zin.nextEntry
              }
          }
-         val found = root.listFiles()?.firstOrNull {
+     }
+
+     private fun findModel(root: File): File? {
+         return root.listFiles()?.firstOrNull {
              it.isDirectory && File(it, "conf").exists()
-         } ?: return null
-         ok.writeText("ok")
-         return found
+         }
+     }
+
+     private fun ensureModel(): File? {
+         val root = File(filesDir, "vosk")
+         val ok = File(root, "model.ok")
+         if (ok.exists()) {
+             val found = findModel(root)
+             if (found != null) return found
+         }
+         say("Baixando o modelo de voz (uns 31 MB)...")
+         for (url in urls) {
+             try {
+                 root.deleteRecursively()
+                 root.mkdirs()
+                 val c = open(url)
+                 if (c == null) {
+                     failMsg = "HTTP " + lastCode
+                     continue
+                 }
+                 unzip(c, root)
+                 val found = findModel(root)
+                 if (found != null) {
+                     ok.writeText("ok")
+                     return found
+                 }
+                 failMsg = "zip sem a pasta conf"
+             } catch (e: Exception) {
+                 failMsg = e.javaClass.simpleName + " " + e.message
+             }
+         }
+         return null
      }
 
      private fun loadModel() {
@@ -161,7 +204,7 @@
              try {
                  val dir = ensureModel()
                  if (dir == null) {
-                     say("Não consegui baixar o modelo de voz. Confira a internet e tente de novo.")
+                     say("Não consegui baixar o modelo de voz. Motivo: " + failMsg)
                      main.post { stopSelf() }
                      return@Thread
                  }
