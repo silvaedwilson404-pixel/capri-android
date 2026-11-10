@@ -283,7 +283,8 @@
          }
          recognizer = null
          listening = false
-     }     private var lastLogged = ""
+     }  
+  private var lastLogged = ""
 
      private fun heard(h: String?) {
          if (h == null) return
@@ -301,11 +302,10 @@
                  val old = if (f.exists()) f.readLines() else emptyList()
                  f.writeText((old + low).takeLast(25).joinToString("\n"))
              } catch (e: Exception) {
-             }
          }
          if (trigger.containsMatchIn(low)) onWake()
      }
-     }
+ }
 
      private fun onWake() {
          main.post {
