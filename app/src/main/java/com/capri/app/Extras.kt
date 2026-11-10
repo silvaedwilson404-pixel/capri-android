@@ -36,7 +36,11 @@
 
      fun handle(act: Activity, q: String): String? {
          val low = q.lowercase().trim().trimEnd('.', '!', '?')
-         val w = wake(act, low)
+         val w = wake(act, low)         
+      if (low.contains("o que você ouviu") || low.contains("o que voce ouviu")) {
+             val f = java.io.File(act.filesDir, "heard.txt")
+             return if (f.exists()) "Ouvi por último:\n" + f.readText().takeLast(600) else "Ainda não ouvi nada."
+         }
          if (w != null) return w
          val rem = Reminders.handle(act, low)
          if (rem != null) return rem
