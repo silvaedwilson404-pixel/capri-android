@@ -170,7 +170,7 @@
      }
 
      private fun isModel(d: File): Boolean {
-         return d.isDirectory && (File(d, "am").isDirectory || File(d, "conf").isDirectory)
+          return d.isDirectory && (File(d, "am").isDirectory || File(d, "conf").isDirectory || File(d, "final.mdl").exists())
      }
 
      private fun findModel(dir: File, depth: Int = 0): File? {
