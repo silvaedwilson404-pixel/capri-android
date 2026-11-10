@@ -283,7 +283,7 @@
          }
          recognizer = null
          listening = false
-     }
+     }     private var lastLogged = ""
 
      private fun heard(h: String?) {
          if (h == null) return
@@ -293,7 +293,18 @@
          } catch (e: Exception) {
              ""
          }
-         if (trigger.containsMatchIn(text.lowercase())) onWake()
+         val low = text.lowercase().trim()
+         if (low.isNotEmpty() && low != lastLogged) {
+             lastLogged = low
+             try {
+                 val f = File(filesDir, "heard.txt")
+                 val old = if (f.exists()) f.readLines() else emptyList()
+                 f.writeText((old + low).takeLast(25).joinToString("\n"))
+             } catch (e: Exception) {
+             }
+         }
+         if (trigger.containsMatchIn(low)) onWake()
+     }
      }
 
      private fun onWake() {
