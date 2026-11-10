@@ -101,6 +101,13 @@
          }
      }
 
+     private fun note(text: String) {
+         try {
+             File(filesDir, "crash.txt").writeText(java.util.Date().toString() + "\nWake: " + text)
+         } catch (e: Exception) {
+         }
+     }
+
      private fun buildNotification(): Notification {
          val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
          nm.createNotificationChannel(
@@ -162,10 +169,35 @@
          }
      }
 
-     private fun findModel(root: File): File? {
-         return root.listFiles()?.firstOrNull {
-             it.isDirectory && File(it, "conf").exists()
+     private fun isModel(d: File): Boolean {
+         return d.isDirectory && (File(d, "am").isDirectory || File(d, "conf").isDirectory)
+     }
+
+     private fun findModel(dir: File, depth: Int = 0): File? {
+         if (isModel(dir)) return dir
+         if (depth >= 3) return null
+         val kids = dir.listFiles() ?: return null
+         for (k in kids) {
+             if (k.isDirectory) {
+                 val f = findModel(k, depth + 1)
+                 if (f != null) return f
+             }
          }
+         return null
+     }
+
+     private fun describe(root: File): String {
+         val sb = StringBuilder()
+         root.listFiles()?.take(8)?.forEach { f ->
+             sb.append(f.name)
+             if (f.isDirectory) {
+                 sb.append("/[")
+                 sb.append(f.list()?.take(8)?.joinToString(",") ?: "")
+                 sb.append("]")
+             }
+             sb.append("; ")
+         }
+         return sb.toString()
      }
 
      private fun ensureModel(): File? {
@@ -182,7 +214,7 @@
                  root.mkdirs()
                  val c = open(url)
                  if (c == null) {
-                     failMsg = "HTTP " + lastCode
+                     failMsg = "HTTP " + lastCode + " em " + url
                      continue
                  }
                  unzip(c, root)
@@ -191,9 +223,9 @@
                      ok.writeText("ok")
                      return found
                  }
-                 failMsg = "zip sem a pasta conf"
+                 failMsg = "zip sem modelo. Conteúdo: " + describe(root)
              } catch (e: Exception) {
-                 failMsg = e.javaClass.simpleName + " " + e.message
+                 failMsg = e.javaClass.simpleName + " " + e.message + " em " + url
              }
          }
          return null
@@ -204,7 +236,8 @@
              try {
                  val dir = ensureModel()
                  if (dir == null) {
-                     say("Não consegui baixar o modelo de voz. Motivo: " + failMsg)
+                     note(failMsg)
+                     say("Não consegui preparar o modelo de voz. Abra o app Capri pelo ícone e veja o texto amarelo.")
                      main.post { stopSelf() }
                      return@Thread
                  }
@@ -212,7 +245,8 @@
                  say("Modelo pronto. Pode dizer Capri.")
                  main.post { resumeNow() }
              } catch (e: Throwable) {
-                 say("Erro ao carregar o modelo: " + e.message)
+                 note("Erro ao carregar o modelo: " + e.javaClass.simpleName + " " + e.message)
+                 say("Erro ao carregar o modelo. Abra o app Capri pelo ícone e veja o texto amarelo.")
                  main.post { stopSelf() }
              }
          }.start()
