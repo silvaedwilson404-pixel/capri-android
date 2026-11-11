@@ -33,7 +33,7 @@
      private var lastCode = 0
      private val main = Handler(Looper.getMainLooper())
      private val resumeRun = Runnable { resumeNow() }
-     private val trigger = Regex("\\b(capri|cápri|kapri|capre|cabri|capry)\\b")
+     private val trigger = Regex("\\b(capri|cápri|kapri|capre|cabri|capry|cape)\\b")
      private val urls = listOf(
          "https://alphacephei.com/vosk/models/vosk-model-small-pt-0.3.zip",
          "https://huggingface.co/rhasspy/vosk-models/resolve/main/pt/vosk-model-small-pt-0.3.zip"
