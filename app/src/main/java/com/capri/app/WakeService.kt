@@ -256,7 +256,7 @@
          val m = model
          if (listening || m == null) return
          try {
-             val r = Recognizer(m, 16000.0f)
+          val r = Recognizer(m, 16000.0f, "[\"capri\", \"[unk]\"]")
              val s = SpeechService(r, 16000.0f)
              s.startListening(listener)
              recognizer = r
