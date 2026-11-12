@@ -2,6 +2,9 @@
 
  import android.app.Activity
  import android.app.AlertDialog
+ import android.content.ContentValues
+ import android.net.Uri
+ import android.provider.MediaStore
  import android.content.ActivityNotFoundException
  import android.content.Context
  import android.content.Intent
@@ -259,7 +262,11 @@
                  .edit().remove("hist").apply()
              out.text = "Memória da conversa apagada. Os fatos sobre você continuam."
          }
-         box.addView(clear)
+         box.addView(clear)         
+        val photo = Button(this)
+         photo.text = "Foto"
+         photo.setOnClickListener { pickPhoto() }
+         box.addView(photo)
 
          out = TextView(this)
          out.textSize = 16f
