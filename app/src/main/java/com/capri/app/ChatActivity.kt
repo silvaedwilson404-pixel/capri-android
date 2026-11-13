@@ -414,7 +414,11 @@
      }
 
      override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-         super.onActivityResult(requestCode, resultCode, data)
+         super.onActivityResult(requestCode, resultCode, data)        
+      if (requestCode == 21) {
+             onPhoto(resultCode, data)
+             return
+         }
          setStatus("PRONTA", "#4a2fa0")
          if (requestCode == 7 && resultCode == RESULT_OK) {
              val said = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
@@ -498,7 +502,87 @@
          return true
      }
 
-     private fun sendQuestion() {
+        private var camUri: Uri? = null
+
+     fun pickPhoto() {
+         val gallery = Intent(Intent.ACTION_GET_CONTENT)
+         gallery.type = "image/*"
+         val chooser = Intent.createChooser(gallery, "Escolha a foto ou tire uma")
+         camUri = null
+         try {
+             val v = ContentValues()
+             v.put(MediaStore.Images.Media.DISPLAY_NAME, "capri_" + System.currentTimeMillis() + ".jpg")
+             v.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+             val u = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v)
+             if (u != null) {
+                 camUri = u
+                 val cam = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+                 cam.putExtra(MediaStore.EXTRA_OUTPUT, u)
+                 cam.addFlags(
+                     Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                 )
+                 chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(cam))
+             }
+         } catch (e: Exception) {
+             camUri = null
+         }
+         try {
+             startActivityForResult(chooser, 21)
+         } catch (e: Exception) {
+             out.text = "Não consegui abrir a galeria."
+         }
+     }
+
+     private fun onPhoto(resultCode: Int, data: Intent?) {
+         val cam = camUri
+         camUri = null
+         val picked: Uri? = if (resultCode == RESULT_OK) (data?.data ?: cam) else null
+         if (cam != null && picked != cam) {
+             try {
+                 contentResolver.delete(cam, null, null)
+             } catch (e: Exception) {
+             }
+         }
+         if (picked == null) {
+             setStatus("PRONTA", "#4a2fa0")
+             return
+         }
+         val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
+         val key = prefs.getString("key", "") ?: ""
+         if (key.isEmpty()) {
+             out.text = "Falta colar a chave do Groq."
+             return
+         }
+         var q = ask.text.toString().trim()
+         if (q.isEmpty()) q = "Descreva esta imagem de forma curta e comente."
+         val pname = names.getOrNull(spinner.selectedItemPosition) ?: presetNames[0]
+         val desc = descs.getOrNull(spinner.selectedItemPosition) ?: presetDescs[0]
+         tts?.stop()
+         out.text = "Olhando a foto..."
+         setStatus("PENSANDO", "#7b3ff2")
+         Vision.ask(applicationContext, picked, key, desc, getFacts(), q) { answer ->
+             val failed = answer.startsWith("[wide] Erro") || answer.startsWith("[wide] Deu erro")
+             val m = Regex("^\\[(\\w+)\\]\\s*").find(answer)
+             val tag = m?.groupValues?.get(1) ?: "calm"
+             val face = if (tag in faces) tag else "calm"
+             val text = answer.replace(Regex("^\\[\\w+\\]\\s*"), "")
+             if (failed) setStatus("ERRO", "#ff2d6f") else setStatus("RESPONDEU", "#1fae6b")
+             showFace(face)
+             runOnUiThread {
+                 out.text = text
+                 applyVoice(pname)
+                 tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "capri")
+             }
+             startService(
+                 Intent(this, OverlayService::class.java)
+                     .setAction("FACE")
+                     .putExtra("face", face)
+                     .putExtra("talk", Math.min(12000, 800 + text.length * 70))
+                     .putExtra("text", text)
+             )
+         }
+     }
+  private fun sendQuestion() {
          val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
          val typed = keyField.text.toString().trim()
          if (keyField.visibility == View.VISIBLE && typed.isNotEmpty()) {
