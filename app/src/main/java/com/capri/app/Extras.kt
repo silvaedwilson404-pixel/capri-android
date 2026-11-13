@@ -42,7 +42,17 @@
              return if (f.exists()) "Ouvi por último:\n" + f.readText().takeLast(600) else "Ainda não ouvi nada."
          }
          if (w != null) return w
-         val rem = Reminders.handle(act, low)
+         val rem = Reminders.handle(act, low)       
+      val photoWords = listOf(
+             "olha essa foto", "olha a foto", "olha esta foto", "olha essa imagem",
+             "tira uma foto", "tirar uma foto", "lê essa foto", "le essa foto",
+             "lê o texto da foto", "lê o texto dessa foto", "le o texto dessa foto",
+             "analisa a foto", "analisa essa foto"
+         )
+         if (act is ChatActivity && photoWords.any { low.startsWith(it) }) {
+             act.pickPhoto()
+             return "Escolha a foto, ou tire uma agora."
+         }
          if (rem != null) return rem
          val gm = GoodMorning.handle(act, low)
          if (gm != null) return gm
