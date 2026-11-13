@@ -13,7 +13,7 @@
  import java.net.URL
 
  object Vision {
-     private const val MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+     private const val MODEL = "qwen/qwen3.8-27b"
      private const val MAX_SIDE = 1280
 
      private fun loadScaled(ctx: Context, uri: Uri): Bitmap? {
@@ -115,7 +115,7 @@
          val body = JSONObject()
          body.put("model", MODEL)
          body.put("messages", msgs)
-         body.put("max_tokens", 600)
+         body.put("max_completion_tokens", 2000)
 
          val c = URL("https://api.groq.com/openai/v1/chat/completions")
              .openConnection() as HttpURLConnection
@@ -125,7 +125,7 @@
          c.setRequestProperty("User-Agent", "CapriApp/1.3")
          c.doOutput = true
          c.connectTimeout = 20000
-         c.readTimeout = 60000
+         c.readTimeout = 90000
          c.outputStream.use { it.write(body.toString().toByteArray()) }
 
          val code = c.responseCode
@@ -138,7 +138,12 @@
              return "[wide] Erro " + code + ": " + err.take(140)
          }
          val txt = c.inputStream.bufferedReader().readText()
-         return JSONObject(txt).getJSONArray("choices").getJSONObject(0)
+         val raw = JSONObject(txt).getJSONArray("choices").getJSONObject(0)
              .getJSONObject("message").getString("content")
+         val clean = raw.replace(Regex("(?s)<think>.*?</think>"), "").trim()
+         if (clean.isEmpty() || clean.contains("<think>")) {
+             return "[wide] Deu erro: a resposta veio vazia, tente de novo."
+         }
+         return clean
      }
  }
