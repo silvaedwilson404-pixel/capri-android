@@ -18,8 +18,8 @@
  import android.webkit.WebView
 
  class OverlayService : Service() {
-     private val LARGURA = 220
-     private val ALTURA = 380
+     private val LARGURA = 180
+     private val ALTURA = 310
      private var web: WebView? = null
      private var capriLp: WindowManager.LayoutParams? = null
 
@@ -221,7 +221,7 @@
  <div id="b" style="position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:50% 100%">
  <img src="capri-cutout.png" style="width:100%;height:100%;object-fit:contain">
  </div>
- <img id="r" src="face-calm.png" style="position:absolute;right:6px;bottom:10px;width:76px;height:76px;object-fit:cover;border-radius:50%;box-shadow:0 2px 10px rgba(0,0,0,.6);transition:opacity .25s">
+ <img id="r" src="face-calm.png" style="position:absolute;right:6px;bottom:10px;width:62px;height:62px;object-fit:cover;border-radius:50%;box-shadow:0 2px 10px rgba(0,0,0,.6);transition:opacity .25s">
  <div id="zz"><span>z</span><span>Z</span><span>Z</span></div>
  <img id="cu" src="intro-grab.webp" style="display:none;position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain">
  <style>
@@ -235,7 +235,7 @@
  #b.sleep{animation:snore 4s ease-in-out infinite;filter:brightness(.6) saturate(.7)}
  @keyframes snore{0%,100%{transform:scale(.7,.62) rotate(-6deg)}50%{transform:scale(.72,.65) rotate(-6deg)}}
  #b.jolt{animation:jolt .5s ease-out 1}
- @keyframes jolt{0%{transform:scale(.8) rotate(-6deg)}40%{transform:translateY(-24px) scale(1.05)}100%{transform:scale(1)}}
+ @keyframes jolt{0%{transform:scale(.8) rotate(-6deg)}40%{transform:translateY(-24px) scale(1.05)}1p00%{transform:scale(1)}}
  #zz{display:none;position:absolute;left:58%;top:38%;font:bold 22px monospace;color:#c9b8ff;pointer-events:none}
  #zz span{position:absolute;opacity:0;animation:zz 3s ease-in infinite}
  #zz span:nth-child(2){animation-delay:1s;left:10px}
@@ -320,10 +320,10 @@
  b.style.display='none';
  r.style.display='none';
  cu.style.display='block';
- Native.size(340,191,true);
+ Native.size(280,158,true);
  }
  function leave(){
- Native.size(220,380,false);
+ Native.size(180,310,false);
  cu.style.display='none';
  b.style.display='block';
  r.style.display='block';
