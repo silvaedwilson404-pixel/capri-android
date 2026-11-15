@@ -32,7 +32,20 @@
      ) {
          private var savedX = 0
          private var savedY = 0
-         private var big = false
+         private var big = false       
+      @JavascriptInterface
+         fun jump() {
+             v.post {
+                 if (big) return@post
+                 val h = v.resources.displayMetrics.heightPixels
+                 val nx = (Math.random() * Math.max(1, sw - lp.width)).toInt()
+                 val top = (h * 0.1).toInt()
+                 val range = Math.max(1, (h * 0.8).toInt() - lp.height)
+                 lp.x = nx
+                 lp.y = top + (Math.random() * range).toInt()
+                 wm.updateViewLayout(v, lp)
+             }
+         }
 
          @Volatile
          var asleep = false
@@ -71,7 +84,11 @@
              stopSelf()
              return START_NOT_STICKY
          }
-         if (intent?.action == "FACE") {
+                  if (intent?.action == "TELEPORT") {
+             web?.post { web?.evaluateJavascript("teleport()", null) }
+             return START_STICKY
+                  }
+      if (intent?.action == "FACE") {
              val face = intent.getStringExtra("face") ?: "calm"
              val talk = intent.getIntExtra("talk", 4000)
              val text = intent.getStringExtra("text") ?: ""
@@ -253,7 +270,10 @@
  @keyframes look{0%,100%{transform:scale(1)}40%,70%{transform:scale(1.08) translateY(-6px)}}
  #b.glitch{animation:glitch .5s steps(2) 3}
  @keyframes glitch{0%{transform:translateX(0);filter:none}25%{transform:translateX(-8px);filter:hue-rotate(90deg)}50%{transform:translateX(8px) skewX(4deg);filter:hue-rotate(200deg)}75%{transform:translateX(-4px);filter:hue-rotate(40deg)}100%{transform:translateX(0);filter:none}}
- </style>
+  #b.tpout{animation:tpout .55s steps(8) forwards}
+ @keyframes tpout{0%{transform:none;filter:none;opacity:1}25%{transform:translateX(-10px) skewX(6deg);filter:hue-rotate(90deg)}50%{transform:translateX(12px) skewX(-8deg) scaleY(1.05);filter:hue-rotate(200deg) brightness(1.6);opacity:.7}75%{transform:scale(.4,1.2);filter:brightness(2);opacity:.3}100%{transform:scale(.05,1.4);opacity:0}}
+ #b.tpin{animation:tpin .55s steps(8) 1}
+ @keyframes tpin{0%{transform:scale(.05,1.4);opacity:0}30%{transform:scale(.5,1.2);filter:brightness(2);opacity:.4}60%{transform:translateX(12px) skewX(-8deg);filter:hue-rotate(200deg);opacity:.8}100%{transform:none;filter:none;opacity:1}}</style>
  <script>
  var b=document.getElementById('b');
  var cu=document.getElementById('cu');
@@ -278,7 +298,16 @@
  zz.style.display='block';
  r.style.opacity=0.35;
  }
- function wake(){
+ function wake(){ 
+ function teleport(){
+ if(busy||asleep||peeking){return}
+ b.className='tpout';
+ setTimeout(function(){
+ Native.jump();
+ b.className='tpin';
+ setTimeout(function(){b.className=''},650);
+ },600);
+ }
  arm();
  if(!asleep){return}
  asleep=false;
