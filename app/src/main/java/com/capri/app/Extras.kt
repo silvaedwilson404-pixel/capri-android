@@ -42,7 +42,12 @@
              return if (f.exists()) "Ouvi por último:\n" + f.readText().takeLast(600) else "Ainda não ouvi nada."
          }
          if (w != null) return w
-         val rem = Reminders.handle(act, low)       
+                  val tpWords = listOf("teleporta", "teleporte", "some daí", "some dai", "vai pra outro lugar")
+         if (tpWords.any { low.startsWith(it) }) {
+             act.startService(Intent(act, OverlayService::class.java).setAction("TELEPORT"))
+             return "Zzzt!"
+         }
+      val rem = Reminders.handle(act, low)       
       val photoWords = listOf(
              "olha essa foto", "olha a foto", "olha esta foto", "olha essa imagem",
              "tira uma foto", "tirar uma foto", "lê essa foto", "le essa foto",
