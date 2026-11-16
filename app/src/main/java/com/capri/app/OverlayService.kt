@@ -297,17 +297,7 @@
  b.className='sleep';
  zz.style.display='block';
  r.style.opacity=0.35;
- }
- function wake(){ 
- function teleport(){
- if(busy||asleep||peeking){return}
- b.className='tpout';
- setTimeout(function(){
- Native.jump();
- b.className='tpin';
- setTimeout(function(){b.className=''},650);
- },600);
- }
+ } function wake(){
  arm();
  if(!asleep){return}
  asleep=false;
@@ -316,6 +306,15 @@
  r.style.opacity=1;
  b.className='jolt';
  setTimeout(function(){b.className=peeking?peekCls:''},500);
+ }
+ function teleport(){
+ if(busy||asleep||peeking){return}
+ b.className='tpout';
+ setTimeout(function(){
+ Native.jump();
+ b.className='tpin';
+ setTimeout(function(){b.className=''},650);
+ },600);
  }
  function peek(side){
  peeking=true;
