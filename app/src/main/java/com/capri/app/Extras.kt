@@ -48,6 +48,15 @@
              return "Zzzt!"
          }
       val rem = Reminders.handle(act, low)       
+      val beamWords = listOf(
+             "raio", "dispara um raio", "atira um raio", "solta um raio", "manda um raio", "aponta"
+         )
+         if (beamWords.any { low.startsWith(it) }) {
+             act.startService(
+                 Intent(act, OverlayService::class.java).setAction("BEAM").putExtra("where", low)
+             )
+             return "Pow!"
+         }      
       val photoWords = listOf(
              "olha essa foto", "olha a foto", "olha esta foto", "olha essa imagem",
              "tira uma foto", "tirar uma foto", "lê essa foto", "le essa foto",
