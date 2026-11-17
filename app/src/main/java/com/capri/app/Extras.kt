@@ -51,7 +51,7 @@
       val beamWords = listOf(
              "raio", "dispara um raio", "atira um raio", "solta um raio", "manda um raio", "aponta"
          )
-         if (beamWords.any { low.startsWith(it) }) {
+          if (beamWords.any { low.startsWith(it) } || (low.contains("raio") && listOf("lan", "dispar", "atir", "solt", "mand", "dá ", "da ", "apont").any { low.contains(it) })) {
              act.startService(
                  Intent(act, OverlayService::class.java).setAction("BEAM").putExtra("where", low)
              )
