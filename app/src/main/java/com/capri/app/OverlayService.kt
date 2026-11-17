@@ -84,7 +84,12 @@
              stopSelf()
              return START_NOT_STICKY
          }
-                  if (intent?.action == "TELEPORT") {
+                  if (intent?.action == "TELEPORT") {         
+                   if (intent?.action == "BEAM") {
+             val v = web
+             if (v != null) Beam.fire(applicationContext, v, intent.getStringExtra("where") ?: "")
+             return START_STICKY
+                  }
              web?.post { web?.evaluateJavascript("teleport()", null) }
              return START_STICKY
                   }
