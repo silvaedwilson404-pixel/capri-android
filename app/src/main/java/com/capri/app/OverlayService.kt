@@ -83,17 +83,16 @@
          if (intent?.action == "STOP") {
              stopSelf()
              return START_NOT_STICKY
+                  if (intent?.action == "TELEPORT") {
+             web?.post { web?.evaluateJavascript("teleport()", null) }
+             return START_STICKY
          }
-                  if (intent?.action == "TELEPORT") {         
-                   if (intent?.action == "BEAM") { 
-                    android.widget.Toast.makeText(applicationContext, "Raio recebido", android.widget.Toast.LENGTH_SHORT).show()
+         if (intent?.action == "BEAM") {
              val v = web
              if (v != null) Beam.fire(applicationContext, v, intent.getStringExtra("where") ?: "")
              return START_STICKY
-                  }
-             web?.post { web?.evaluateJavascript("teleport()", null) }
-             return START_STICKY
-                  }
+         }
+                  
       if (intent?.action == "FACE") {
              val face = intent.getStringExtra("face") ?: "calm"
              val talk = intent.getIntExtra("talk", 4000)
