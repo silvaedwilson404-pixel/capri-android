@@ -83,6 +83,7 @@
          if (intent?.action == "STOP") {
              stopSelf()
              return START_NOT_STICKY
+          {
                   if (intent?.action == "TELEPORT") {
              web?.post { web?.evaluateJavascript("teleport()", null) }
              return START_STICKY
