@@ -85,7 +85,8 @@
              return START_NOT_STICKY
          }
                   if (intent?.action == "TELEPORT") {         
-                   if (intent?.action == "BEAM") {
+                   if (intent?.action == "BEAM") {           
+                    android.widget.Toast.makeText(applicationContext, "Raio recebido", android.widget.Toast.LENGTH_SHORT).show()
              val v = web
              if (v != null) Beam.fire(applicationContext, v, intent.getStringExtra("where") ?: "")
              return START_STICKY
