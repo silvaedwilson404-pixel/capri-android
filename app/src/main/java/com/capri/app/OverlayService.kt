@@ -387,8 +387,8 @@
  }
  var pool=['many','wide','smug','aside','look','laugh'];
  setInterval(function(){react(pool[Math.floor(Math.random()*pool.length)])},9000);
- setTimeout(greet,1500);
- arm();
+ setInterval(function(){if(Math.random()<0.1){teleport()}},60000);
+ arm(); 
  </script>
  </body>
  """
