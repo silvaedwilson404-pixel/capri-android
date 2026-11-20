@@ -47,7 +47,10 @@
              act.startService(Intent(act, OverlayService::class.java).setAction("TELEPORT"))
              return "Zzzt!"
          }
-      val rem = Reminders.handle(act, low)       
+      val rem = Reminders.handle(act, low)         
+      val openStarts = listOf("abre ", "abrir ", "abra ", "inicia ", "iniciar ")
+         val opened = openStarts.firstOrNull { low.startsWith(it) }
+         if (opened != null) return Apps.open(act, low.removePrefix(opened))      
       val beamWords = listOf(
              "raio", "dispara um raio", "atira um raio", "solta um raio", "manda um raio", "aponta"
          )
