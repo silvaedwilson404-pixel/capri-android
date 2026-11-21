@@ -48,7 +48,9 @@
              return "Zzzt!"
          }
       val rem = Reminders.handle(act, low)         
-      val openStarts = listOf("abre ", "abrir ", "abra ", "inicia ", "iniciar ")
+      val openStarts = listOf("abre ", "abrir ", "abra ", "inicia ", "iniciar ")       
+      val clk = ClockCmd.handle(act, low)
+         if (clk != null) return clk
          val opened = openStarts.firstOrNull { low.startsWith(it) }
          if (opened != null) return Apps.open(act, low.removePrefix(opened))      
       val beamWords = listOf(
