@@ -431,6 +431,7 @@
 
      private fun handleMusic(q: String): Boolean {
          val low = q.lowercase().trim().trimEnd('.', '!', '?')         
+      if (low.contains("alarme") || low.contains("timer") || low.contains("temporizador") || low.contains("despertador")) return false       
                if (MusicPlayer.isListCommand(low)) {
              val p0 = if (Build.VERSION.SDK_INT >= 33) {
                  "android.permission.READ_MEDIA_AUDIO"
