@@ -47,6 +47,13 @@
              act.startService(Intent(act, OverlayService::class.java).setAction("TELEPORT"))
              return "Zzzt!"
          }
+              val convWords = listOf(
+             "conversar", "vamos conversar", "modo conversa", "quero conversar", "conversa por voz"
+         )
+         if (act is ChatActivity && convWords.any { low == it || low.startsWith(it + " ") }) {
+             act.startConversation()
+             return "Conversa ligada."
+         }
       val rem = Reminders.handle(act, low)         
       val openStarts = listOf("abre ", "abrir ", "abra ", "inicia ", "iniciar ")       
       val clk = ClockCmd.handle(act, low)
