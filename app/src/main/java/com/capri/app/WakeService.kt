@@ -60,7 +60,14 @@
      companion object {
          private var instance: WakeService? = null
 
-         fun resume() {
+                fun pause() {
+             val s = instance ?: return
+             s.main.post {
+                 s.main.removeCallbacks(s.resumeRun)
+                 s.pauseNow()
+             }
+          }
+           fun resume() {       
              val s = instance ?: return
              s.main.post { s.resumeNow() }
          }
