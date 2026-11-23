@@ -272,7 +272,8 @@
         val photo = Button(this)
          photo.text = "Foto"
          photo.setOnClickListener { pickPhoto() }
-         box.addView(photo)       
+         box.addView(photo)  
+     }    
       val conv = Button(this)
          conv.text = "Conversar"
          conv.setOnClickListener {
