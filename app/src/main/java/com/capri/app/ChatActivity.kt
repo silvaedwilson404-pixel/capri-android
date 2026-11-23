@@ -2,6 +2,12 @@
 
  import android.app.Activity
  import android.app.AlertDialog
+import android.Manifest
+import android.os.Handler
+import android.os.Looper
+import android.speech.RecognitionListener
+import android.speech.SpeechRecognizer
+import android.speech.tts.UtteranceProgressListener
  import android.content.ContentValues
  import android.net.Uri
  import android.provider.MediaStore
@@ -266,7 +272,14 @@
         val photo = Button(this)
          photo.text = "Foto"
          photo.setOnClickListener { pickPhoto() }
-         box.addView(photo)
+         box.addView(photo)       
+      val conv = Button(this)
+         conv.text = "Conversar"
+         conv.setOnClickListener {
+             if (convOn) endConversation("Conversa encerrada.") else startConversation()
+         }
+         convBtn = conv
+         box.addView(conv)
 
          out = TextView(this)
          out.textSize = 16f
@@ -582,6 +595,167 @@
                      .putExtra("text", text)
              )
          }
+     }
+      private var convOn = false
+     private var convRec: SpeechRecognizer? = null
+     private var convBtn: Button? = null
+     private var convSilent = 0
+     private var convErrors = 0
+     private val convHandler = Handler(Looper.getMainLooper())
+     private val convTimeout = Runnable { convListen() }
+
+     fun startConversation() {
+         if (convOn) return
+         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 31)
+             out.text = "Permita o microfone e toque em Conversar de novo."
+             return
+         }
+         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+             out.text = "Este celular não tem reconhecimento de voz disponível."
+             return
+         }
+         WakeService.pause()
+         tts?.stop()
+         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+             override fun onStart(utteranceId: String?) {}
+
+             override fun onDone(utteranceId: String?) {
+                 if (utteranceId == "capri") convHandler.post { if (convOn) convListen() }
+             }
+
+             override fun onError(utteranceId: String?) {
+                 if (utteranceId == "capri") convHandler.post { if (convOn) convListen() }
+             }
+         })
+         convOn = true
+         convSilent = 0
+         convErrors = 0
+         convBtn?.text = "Parar conversa"
+         out.text = "Conversando. Fale, e diga tchau para encerrar."
+         convListen()
+     }
+
+     private fun convListen() {
+         if (!convOn) return
+         convHandler.removeCallbacks(convTimeout)
+         setStatus("OUVINDO", "#ff2d6f")
+         try {
+             convRec?.destroy()
+         } catch (e: Exception) {
+         }
+         val r = SpeechRecognizer.createSpeechRecognizer(this)
+         convRec = r
+         r.setRecognitionListener(object : RecognitionListener {
+             override fun onReadyForSpeech(params: Bundle?) {}
+
+             override fun onBeginningOfSpeech() {}
+
+             override fun onRmsChanged(rmsdB: Float) {}
+
+             override fun onBufferReceived(buffer: ByteArray?) {}
+
+             override fun onEndOfSpeech() {}
+
+             override fun onPartialResults(partialResults: Bundle?) {}
+
+             override fun onEvent(eventType: Int, params: Bundle?) {}
+
+             override fun onError(error: Int) {
+                 convError(error)
+             }
+
+             override fun onResults(results: Bundle?) {
+                 val list = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                 val said = list?.firstOrNull()
+                 if (said.isNullOrBlank()) convError(SpeechRecognizer.ERROR_NO_MATCH) else convHeard(said)
+             }
+         }
+         val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
+         i.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
+         i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+         i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+         try {
+             r.startListening(i)
+         } catch (e: Exception) {
+             endConversation("Não consegui ouvir: " + e.message)
+         }
+     }
+
+     private fun convError(code: Int) {
+         if (!convOn) return
+         if (code == SpeechRecognizer.ERROR_NO_MATCH || code == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+             convSilent++
+             if (convSilent >= 3) {
+                 endConversation("Encerrei a conversa por silêncio.")
+                 return
+             }
+             convHandler.postDelayed({ convListen() }, 400)
+             return
+         }
+         if (code == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
+             endConversation("Sem permissão de microfone.")
+             return
+         }
+         convErrors++
+         if (convErrors >= 4) {
+             endConversation("Parei de ouvir (erro " + code + ").")
+             return
+         }
+         convHandler.postDelayed({ convListen() }, 900)
+     }
+
+     private fun convHeard(said: String) {
+         convSilent = 0
+         convErrors = 0
+         val low = said.lowercase().trim().trimEnd('.', '!', '?')
+         val byes = listOf(
+             "tchau", "encerrar conversa", "encerra a conversa", "fim da conversa",
+             "chega de conversar", "para de conversar", "parar conversa"
+         )
+         if (byes.any { low.contains(it) }) {
+             endConversation("Até mais!")
+             tts?.speak("Até mais!", TextToSpeech.QUEUE_FLUSH, null, "bye")
+             return
+         }
+         setStatus("PENSANDO", "#7b3ff2")
+         ask.setText(said)
+         out.text = ""
+         sendQuestion()
+         val t = out.text.toString()
+         if (t == "Pensando...") {
+             convHandler.postDelayed(convTimeout, 60000)
+         } else if (t == "Procurando...") {
+             endConversation("Música a caminho. Conversa encerrada.")
+         } else if (t.isEmpty()) {
+             convListen()
+         } else if (t.startsWith("Falta colar")) {
+             endConversation(t)
+         } else {
+             tts?.speak(t, TextToSpeech.QUEUE_FLUSH, null, "capri")
+             convHandler.postDelayed(convTimeout, 30000)
+         }
+     }
+
+     private fun endConversation(msg: String) {
+         convOn = false
+         convHandler.removeCallbacksAndMessages(null)
+         try {
+             convRec?.destroy()
+         } catch (e: Exception) {
+         }
+         convRec = null
+         convBtn?.text = "Conversar"
+         out.text = msg
+         setStatus("PRONTA", "#4a2fa0")
+         WakeService.resume()
+     }
+
+     override fun onStop() {
+         if (convOn) endConversation("Conversa encerrada.")
+         super.onStop()
      }
   private fun sendQuestion() {
          val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
