@@ -268,12 +268,7 @@
                  .edit().remove("hist").apply()
              out.text = "Memória da conversa apagada. Os fatos sobre você continuam."
          }
-         box.addView(clear)         
-        val photo = Button(this)
-         photo.text = "Foto"
-         photo.setOnClickListener { pickPhoto() }
-         box.addView(photo)  
-        }             
+         box.addView(clear)               
          val photo = Button(this)
          photo.text = "Foto"
          photo.setOnClickListener { pickPhoto() }
@@ -283,7 +278,7 @@
          conv.text = "Conversar"
          conv.setOnClickListener {
              if (convOn) endConversation("Conversa encerrada.") else startConversation()
-         }
+         
          convBtn = conv
          box.addView(conv)
 
