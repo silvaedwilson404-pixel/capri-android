@@ -445,3 +445,456 @@
              }
          }
      }
+     private fun handleMusic(q: String): Boolean {
+         val low = q.lowercase().trim().trimEnd('.', '!', '?')
+         if (low.contains("alarme") || low.contains("timer") || low.contains("temporizador") || low.contains("despertador")) return false
+         if (MusicPlayer.isListCommand(low)) {
+             val p0 = if (Build.VERSION.SDK_INT >= 33) {
+                 "android.permission.READ_MEDIA_AUDIO"
+             } else {
+                 "android.permission.READ_EXTERNAL_STORAGE"
+             }
+             if (checkSelfPermission(p0) != PackageManager.PERMISSION_GRANTED) {
+                 requestPermissions(arrayOf(p0), 9)
+                 out.text = "Permita o acesso aos áudios e peça de novo."
+                 return true
+             }
+             tts?.stop()
+             out.text = "Procurando..."
+             setStatus("PENSANDO", "#7b3ff2")
+             MusicPlayer.command(applicationContext, low) { msg ->
+                 runOnUiThread {
+                     out.text = msg
+                     setStatus("RESPONDEU", "#1fae6b")
+                 }
+             }
+             return true
+         }
+         val stops = listOf(
+             "para", "parar", "pare", "para a música", "para a musica",
+             "parar a música", "parar a musica", "desliga a música", "desliga a musica"
+         )
+         val pauses = listOf("pausa", "pausar", "pausa a música", "pausa a musica")
+         val resumes = listOf("continua", "continuar", "continua a música", "continua a musica", "retoma")
+         if (low in stops) {
+             MusicPlayer.stop()
+             out.text = "Música parada."
+             setStatus("PRONTA", "#4a2fa0")
+             return true
+         }
+         if (low in pauses) {
+             MusicPlayer.pause()
+             out.text = "Música pausada."
+             setStatus("PRONTA", "#4a2fa0")
+             return true
+         }
+         if (low in resumes) {
+             MusicPlayer.resume()
+             out.text = "Continuando a música."
+             setStatus("PRONTA", "#4a2fa0")
+             return true
+         }
+         val starts = listOf("toca ", "tocar ", "toque ", "põe ", "poe ", "coloca ", "colocar ", "reproduz ")
+         val start = starts.firstOrNull { low.startsWith(it) } ?: return false
+         val wanted = low.removePrefix(start).trim()
+         val perm = if (Build.VERSION.SDK_INT >= 33) {
+             "android.permission.READ_MEDIA_AUDIO"
+         } else {
+             "android.permission.READ_EXTERNAL_STORAGE"
+         }
+         if (checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
+             requestPermissions(arrayOf(perm), 9)
+             out.text = "Permita o acesso aos áudios e peça de novo."
+             return true
+         }
+         tts?.stop()
+         out.text = "Procurando..."
+         setStatus("PENSANDO", "#7b3ff2")
+         MusicPlayer.play(applicationContext, wanted) { msg ->
+             runOnUiThread {
+                 out.text = msg
+                 setStatus("RESPONDEU", "#1fae6b")
+             }
+         }
+         return true
+     }
+
+     private var camUri: Uri? = null
+
+     fun pickPhoto() {
+         val gallery = Intent(Intent.ACTION_GET_CONTENT)
+         gallery.type = "image/*"
+         val chooser = Intent.createChooser(gallery, "Escolha a foto ou tire uma")
+         camUri = null
+         try {
+             val v = ContentValues()
+             v.put(MediaStore.Images.Media.DISPLAY_NAME, "capri_" + System.currentTimeMillis() + ".jpg")
+             v.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+             val u = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v)
+             if (u != null) {
+                 camUri = u
+                 val cam = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+                 cam.putExtra(MediaStore.EXTRA_OUTPUT, u)
+                 cam.addFlags(
+                     Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                 )
+                 chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(cam))
+             }
+         } catch (e: Exception) {
+             camUri = null
+         }
+         try {
+             startActivityForResult(chooser, 21)
+         } catch (e: Exception) {
+             out.text = "Não consegui abrir a galeria."
+         }
+     }
+
+     private fun onPhoto(resultCode: Int, data: Intent?) {
+         val cam = camUri
+         camUri = null
+         val picked: Uri? = if (resultCode == RESULT_OK) (data?.data ?: cam) else null
+         if (cam != null && picked != cam) {
+             try {
+                 contentResolver.delete(cam, null, null)
+             } catch (e: Exception) {
+             }
+         }
+         if (picked == null) {
+             setStatus("PRONTA", "#4a2fa0")
+             return
+         }
+         val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
+         val key = prefs.getString("key", "") ?: ""
+         if (key.isEmpty()) {
+             out.text = "Falta colar a chave do Groq."
+             return
+         }
+         var q = ask.text.toString().trim()
+         if (q.isEmpty()) q = "Descreva esta imagem de forma curta e comente."
+         val pname = names.getOrNull(spinner.selectedItemPosition) ?: presetNames[0]
+         val desc = descs.getOrNull(spinner.selectedItemPosition) ?: presetDescs[0]
+         tts?.stop()
+         out.text = "Olhando a foto..."
+         setStatus("PENSANDO", "#7b3ff2")
+         Vision.ask(applicationContext, picked, key, desc, getFacts(), q) { answer ->
+             val failed = answer.startsWith("[wide] Erro") || answer.startsWith("[wide] Deu erro")
+             val m = Regex("^\\[(\\w+)\\]\\s*").find(answer)
+             val tag = m?.groupValues?.get(1) ?: "calm"
+             val face = if (tag in faces) tag else "calm"
+             val text = answer.replace(Regex("^\\[\\w+\\]\\s*"), "")
+             if (failed) setStatus("ERRO", "#ff2d6f") else setStatus("RESPONDEU", "#1fae6b")
+             showFace(face)
+             runOnUiThread {
+                 out.text = text
+                 applyVoice(pname)
+                 tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "capri")
+             }
+             startService(
+                 Intent(this, OverlayService::class.java)
+                     .setAction("FACE")
+                     .putExtra("face", face)
+                     .putExtra("talk", Math.min(12000, 800 + text.length * 70))
+                     .putExtra("text", text)
+             )
+         }
+     }
+
+     private var convOn = false
+     private var convRec: SpeechRecognizer? = null
+     private var convBtn: Button? = null
+     private var convSilent = 0
+     private var convErrors = 0
+     private val convHandler = Handler(Looper.getMainLooper())
+     private val convTimeout = Runnable { convListen() }
+
+     fun startConversation() {
+         if (convOn) return
+         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 31)
+             out.text = "Permita o microfone e toque em Conversar de novo."
+             return
+         }
+         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+             out.text = "Este celular não tem reconhecimento de voz disponível."
+             return
+         }
+         WakeService.pause()
+         tts?.stop()
+         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+             override fun onStart(utteranceId: String?) {}
+
+             override fun onDone(utteranceId: String?) {
+                 if (utteranceId == "capri") convHandler.post { if (convOn) convListen() }
+             }
+
+             override fun onError(utteranceId: String?) {
+                 if (utteranceId == "capri") convHandler.post { if (convOn) convListen() }
+             }
+         })
+         convOn = true
+         convSilent = 0
+         convErrors = 0
+         convBtn?.text = "Parar conversa"
+         out.text = "Conversando. Fale, e diga tchau para encerrar."
+         convListen()
+     }
+
+     private fun convListen() {
+         if (!convOn) return
+         convHandler.removeCallbacks(convTimeout)
+         setStatus("OUVINDO", "#ff2d6f")
+         try {
+             convRec?.destroy()
+         } catch (e: Exception) {
+         }
+         val r = SpeechRecognizer.createSpeechRecognizer(this)
+         convRec = r
+         r.setRecognitionListener(object : RecognitionListener {
+             override fun onReadyForSpeech(params: Bundle?) {}
+
+             override fun onBeginningOfSpeech() {}
+
+             override fun onRmsChanged(rmsdB: Float) {}
+
+             override fun onBufferReceived(buffer: ByteArray?) {}
+
+             override fun onEndOfSpeech() {}
+
+             override fun onPartialResults(partialResults: Bundle?) {}
+
+             override fun onEvent(eventType: Int, params: Bundle?) {}
+
+             override fun onError(error: Int) {
+                 convError(error)
+             }
+
+             override fun onResults(results: Bundle?) {
+                 val list = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                 val said = list?.firstOrNull()
+                 if (said.isNullOrBlank()) convError(SpeechRecognizer.ERROR_NO_MATCH) else convHeard(said)
+             }
+         })
+         val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
+         i.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
+         i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+         i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+         try {
+             r.startListening(i)
+         } catch (e: Exception) {
+             endConversation("Não consegui ouvir: " + e.message)
+         }
+     }
+
+     private fun convError(code: Int) {
+         if (!convOn) return
+         if (code == SpeechRecognizer.ERROR_NO_MATCH || code == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+             convSilent++
+             if (convSilent >= 3) {
+                 endConversation("Encerrei a conversa por silêncio.")
+                 return
+             }
+             convHandler.postDelayed({ convListen() }, 400)
+             return
+         }
+         if (code == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
+             endConversation("Sem permissão de microfone.")
+             return
+         }
+         convErrors++
+         if (convErrors >= 4) {
+             endConversation("Parei de ouvir (erro " + code + ").")
+             return
+         }
+         convHandler.postDelayed({ convListen() }, 900)
+     }
+
+     private fun convHeard(said: String) {
+         convSilent = 0
+         convErrors = 0
+         val low = said.lowercase().trim().trimEnd('.', '!', '?')
+         val byes = listOf(
+             "tchau", "encerrar conversa", "encerra a conversa", "fim da conversa",
+             "chega de conversar", "para de conversar", "parar conversa"
+         )
+         if (byes.any { low.contains(it) }) {
+             endConversation("Até mais!")
+             tts?.speak("Até mais!", TextToSpeech.QUEUE_FLUSH, null, "bye")
+             return
+         }
+         setStatus("PENSANDO", "#7b3ff2")
+         ask.setText(said)
+         out.text = ""
+         sendQuestion()
+         val t = out.text.toString()
+         if (t == "Pensando...") {
+             convHandler.postDelayed(convTimeout, 60000)
+         } else if (t == "Procurando...") {
+             endConversation("Música a caminho. Conversa encerrada.")
+         } else if (t.isEmpty()) {
+             convListen()
+         } else if (t.startsWith("Falta colar")) {
+             endConversation(t)
+         } else {
+             tts?.speak(t, TextToSpeech.QUEUE_FLUSH, null, "capri")
+             convHandler.postDelayed(convTimeout, 30000)
+         }
+     }
+
+     private fun endConversation(msg: String) {
+         convOn = false
+         convHandler.removeCallbacksAndMessages(null)
+         try {
+             convRec?.destroy()
+         } catch (e: Exception) {
+         }
+         convRec = null
+         convBtn?.text = "Conversar"
+         out.text = msg
+         setStatus("PRONTA", "#4a2fa0")
+         WakeService.resume()
+     }
+
+     private fun sendQuestion() {
+         val prefs = getSharedPreferences("capri", Context.MODE_PRIVATE)
+         val typed = keyField.text.toString().trim()
+         if (keyField.visibility == View.VISIBLE && typed.isNotEmpty()) {
+             prefs.edit().putString("key", typed).apply()
+             keyField.setText("")
+             keyField.visibility = View.GONE
+         }
+         val key = prefs.getString("key", "") ?: ""
+         val q = ask.text.toString().trim()
+         if (handleMusic(q)) return
+         val extra = Extras.handle(this, q)
+         if (extra != null) {
+             out.text = extra
+             setStatus("RESPONDEU", "#1fae6b")
+             return
+         }
+         if (key.isEmpty()) {
+             out.text = "Falta colar a chave."
+             return
+         }
+         if (q.isEmpty()) return
+
+         val rem = Regex(
+             "^(lembre|lembra|anote|anota|guarde|guarda)\\s+que\\s+(.+)$",
+             RegexOption.IGNORE_CASE
+         ).find(q)
+         if (rem != null) {
+             val fact = rem.groupValues[2].trim().trimEnd('.')
+             val cur = getFacts()
+             val upd = if (cur.isEmpty()) fact else cur + "\n" + fact
+             saveFacts(upd.takeLast(2000))
+         }
+         val facts = getFacts()
+
+         val hist = try {
+             JSONArray(prefs.getString("hist", "[]"))
+         } catch (e: Exception) {
+             JSONArray()
+         }
+         val pname = names.getOrNull(spinner.selectedItemPosition) ?: presetNames[0]
+         val desc = descs.getOrNull(spinner.selectedItemPosition) ?: presetDescs[0]
+         tts?.stop()
+         out.text = "Pensando..."
+         setStatus("PENSANDO", "#7b3ff2")
+         Thread {
+             val answer = try {
+                 call(key, hist, q, desc, facts)
+             } catch (e: Exception) {
+                 "[wide] Deu erro: " + e.message
+             }
+             val failed = answer.startsWith("[wide] Erro") || answer.startsWith("[wide] Deu erro")
+             if (!failed) saveHistory(hist, q, answer)
+             val m = Regex("^\\[(\\w+)\\]\\s*").find(answer)
+             val tag = m?.groupValues?.get(1) ?: "calm"
+             val face = if (tag in faces) tag else "calm"
+             val text = answer.replace(Regex("^\\[\\w+\\]\\s*"), "")
+             if (failed) setStatus("ERRO", "#ff2d6f") else setStatus("RESPONDEU", "#1fae6b")
+             showFace(face)
+             runOnUiThread {
+                 out.text = text
+                 applyVoice(pname)
+                 tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "capri")
+             }
+             startService(
+                 Intent(this, OverlayService::class.java)
+                     .setAction("FACE")
+                     .putExtra("face", face)
+                     .putExtra("talk", Math.min(12000, 800 + text.length * 70))
+                     .putExtra("text", text)
+             )
+         }.start()
+     }
+
+     private fun saveHistory(hist: JSONArray, q: String, a: String) {
+         hist.put(JSONObject().put("role", "user").put("content", q))
+         hist.put(JSONObject().put("role", "assistant").put("content", a))
+         val trimmed = JSONArray()
+         val start = Math.max(0, hist.length() - 12)
+         for (i in start until hist.length()) trimmed.put(hist.get(i))
+         getSharedPreferences("capri", Context.MODE_PRIVATE)
+             .edit().putString("hist", trimmed.toString()).apply()
+     }
+
+     override fun onStop() {
+         if (convOn) endConversation("Conversa encerrada.")
+         super.onStop()
+     }
+
+     override fun onDestroy() {
+         convHandler.removeCallbacksAndMessages(null)
+         try {
+             convRec?.destroy()
+         } catch (e: Exception) {
+         }
+         tts?.stop()
+         tts?.shutdown()
+         WakeService.resume()
+         super.onDestroy()
+     }
+
+     private fun call(key: String, hist: JSONArray, q: String, desc: String, facts: String): String {
+         val body = JSONObject()
+         body.put("model", "openai/gpt-oss-20b")
+         val msgs = JSONArray()
+         val known = if (facts.isEmpty()) "" else
+             "Fatos que você sabe sobre o usuário, use quando fizer sentido: " +
+                 facts.replace("\n", "; ") + ". "
+         msgs.put(
+             JSONObject().put("role", "system").put(
+                 "content",
+                 "Você é Capri, uma assistente " + desc + ". " +
+                     known +
+                     "Você lembra do que já foi conversado. " +
+                     "Responda em português, em no máximo 3 frases. " +
+                     "Comece SEMPRE com uma tag de emoção entre colchetes, " +
+                     "uma destas: [calm] [laugh] [smug] [aside] [look] [many] [wide]."
+             )
+         )
+         for (i in 0 until hist.length()) msgs.put(hist.get(i))
+         msgs.put(JSONObject().put("role", "user").put("content", q))
+         body.put("messages", msgs)
+
+         val c = URL("https://api.groq.com/openai/v1/chat/completions")
+             .openConnection() as HttpURLConnection
+         c.requestMethod = "POST"
+         c.setRequestProperty("Content-Type", "application/json")
+         c.setRequestProperty("Authorization", "Bearer " + key)
+         c.setRequestProperty("User-Agent", "CapriApp/1.0")
+         c.doOutput = true
+         c.connectTimeout = 15000
+         c.readTimeout = 30000
+         c.outputStream.use { it.write(body.toString().toByteArray()) }
+
+         val code = c.responseCode
+         if (code !in 200..299) return "[wide] Erro " + code
+         val txt = c.inputStream.bufferedReader().readText()
+         return JSONObject(txt).getJSONArray("choices").getJSONObject(0)
+             .getJSONObject("message").getString("content")
+     }
+ }
