@@ -259,7 +259,8 @@
          }.start()
      }
 
-     private fun resumeNow() {
+     private fun resumeNow() {       
+      if (ConvService.running) return
          val m = model
          if (listening || m == null) return
          try {
