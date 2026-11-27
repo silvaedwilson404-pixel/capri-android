@@ -869,7 +869,8 @@
              JSONObject().put("role", "system").put(
                  "content",
                  "Você é Capri, uma assistente " + desc + ". " +
-                     known +
+                     known +                   
+                     Notes.context(this, q) +
                      "Você lembra do que já foi conversado. " +
                      "Responda em português, em no máximo 3 frases. " +
                      "Comece SEMPRE com uma tag de emoção entre colchetes, " +
