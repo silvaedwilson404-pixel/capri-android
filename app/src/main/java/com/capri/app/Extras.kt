@@ -54,7 +54,9 @@
              act.startConversation()
              return "Conversa ligada."
          }
-      val rem = Reminders.handle(act, low)         
+      val rem = Reminders.handle(act, low)       
+      val kb = Notes.handle(act, q, low)
+         if (kb != null) return kb       
       val openStarts = listOf("abre ", "abrir ", "abra ", "inicia ", "iniciar ")       
       val clk = ClockCmd.handle(act, low)
          if (clk != null) return clk
