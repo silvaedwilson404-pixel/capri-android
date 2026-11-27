@@ -303,7 +303,7 @@
          scroll.addView(box)
          setContentView(scroll)
 
-         if (prefs.getString("key", "") != "" && savedInstanceState == null) {
+           if (prefs.getString("key", "") != "" && savedInstanceState == null && !ConvService.running) {
              scroll.postDelayed({ listen() }, 300)
          }
      }
