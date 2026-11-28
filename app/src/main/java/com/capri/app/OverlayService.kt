@@ -84,7 +84,13 @@
              stopSelf()
              return START_NOT_STICKY
          }
-                  if (intent?.action == "TELEPORT") {
+                  if (intent?.action == "TELEPORT") {        
+                   if (intent?.action == "STATUS") {
+             val t = (intent.getStringExtra("text") ?: "").replace("'", "")
+             val c = intent.getStringExtra("color") ?: "#7b3ff2"
+             web?.post { web?.evaluateJavascript("status('" + t + "','" + c + "')", null) }
+             return START_STICKY
+                  }
              web?.post { web?.evaluateJavascript("teleport()", null) }
              return START_STICKY
          }
@@ -245,9 +251,11 @@
  <img src="capri-cutout.png" style="width:100%;height:100%;object-fit:contain">
  </div>
  <img id="r" src="face-calm.png" style="position:absolute;right:6px;bottom:10px;width:62px;height:62px;object-fit:cover;border-radius:50%;box-shadow:0 2px 10px rgba(0,0,0,.6);transition:opacity .25s">
- <div id="zz"><span>z</span><span>Z</span><span>Z</span></div>
+ <div id="zz"><span>z</span><span>Z</span><span>Z</span></div> 
+ <div id="st"></div>
  <img id="cu" src="intro-grab.webp" style="display:none;position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain">
- <style>
+ <style> 
+ #st{display:none;position:absolute;top:2px;left:50%;transform:translateX(-50%);font:bold 11px monospace;color:#fff;padding:3px 8px;border-radius:8px;white-space:nowrap;z-index:5}
  #b{animation:pop .6s ease-out 1,idle 4s ease-in-out .6s infinite}
  @keyframes pop{0%{transform:translateY(60px) scale(.7);opacity:0}100%{transform:translateY(0) scale(1);opacity:1}}
  @keyframes idle{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-12px) rotate(1.5deg)}}
@@ -331,6 +339,13 @@
  peeking=false;
  peekCls='';
  if(!asleep){b.className=''}
+ }
+ function status(t,c){
+ var e=document.getElementById('st');
+ if(!t){e.style.display='none';return}
+ e.textContent=t;
+ e.style.background=c;
+ e.style.display='block';
  }
  function react(n){
  var cls=map[n];
