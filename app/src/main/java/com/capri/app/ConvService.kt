@@ -73,7 +73,7 @@
          }
      }
 
-     private fun buildNotification(): Notification {
+      private fun buildNotification(info: String = "Fale normalmente. Diga tchau para encerrar."): Notification {
          val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
          nm.createNotificationChannel(
              NotificationChannel("capri_conv", "Capri conversando", NotificationManager.IMPORTANCE_LOW)
@@ -85,7 +85,7 @@
          )
          return Notification.Builder(this, "capri_conv")
              .setContentTitle("Capri conversando")
-             .setContentText("Fale normalmente. Diga tchau para encerrar.")
+             .setContentText(info)
              .setSmallIcon(android.R.drawable.ic_btn_speak_now)
              .addAction(Notification.Action.Builder(0, "Encerrar", stop).build())
              .build()
@@ -127,7 +127,32 @@
          return START_NOT_STICKY
      }
 
-     private fun listen() {
+     private fun listen() {             
+      private fun status(text: String, color: String, notif: Boolean = true) {        
+       status("", "", false)  
+       status("OUVINDO", "#ff2d6f")
+         try {
+             if (Speaker.capriOn(this)) {
+                 startService(
+                     Intent(this, OverlayService::class.java)
+                         .setAction("STATUS")
+                         .putExtra("text", text)
+                         .putExtra("color", color)
+                 )
+             }
+         } catch (e: Exception) {
+         }
+         if (notif) {
+             try {
+                 val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                 nm.notify(
+                     3,
+                     buildNotification(if (text.isEmpty()) "Fale normalmente. Diga tchau para encerrar." else text)
+                 )
+             } catch (e: Exception) {
+             }
+         }
+     }
          if (!active) return
          try {
              rec?.destroy()
@@ -207,7 +232,8 @@
              return
          }
          endAfter = false
-         Thread {
+         Thread {        
+          status("PENSANDO", "#7b3ff2")
              val answer = reply(said, low)
              main.post { speak(answer) }
          }.start()
@@ -283,7 +309,8 @@
          val tag = m?.groupValues?.get(1) ?: "calm"
          val face = if (tag in faces) tag else "calm"
          val text = answer.replace(Regex("^\\[\\w+\\]\\s*"), "").trim()
-         Speaker.toCapri(this, face, text)
+         Speaker.toCapri(this, face, text)      
+         status("FALANDO", "#1fae6b")
          val end = endAfter
          Speaker.say(this, text) {
              main.post {
